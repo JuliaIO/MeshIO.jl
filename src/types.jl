@@ -2,7 +2,7 @@
 #Started accumulating all the different mesh types and attributes. 
 
 abstract MeshAttribute
-immutable Plain end
+immutable Plain <: MeshAttribute end
 const PLAIN = Plain()
 
 
