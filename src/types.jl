@@ -17,13 +17,16 @@ abstract HomogenousAttributes{Attributes} <: MeshAttribute
 immutable UVAttribute{T} <: HomogenousAttributes{(UV{T},)}
     uv::Vector{UV{T}}
 end
+immutable UVWAttribute{T} <: HomogenousAttributes{(UVW{T},)}
+    uvw::Vector{UVW{T}}
+end
 immutable UVNormalAttribute{TexCoordinate, NORMAL} <: HomogenousAttributes{(TexCoordinate, NORMAL)}
     uv::Vector{TexCoordinate}
     normal::Vector{NORMAL}
 end
 
-immutable NormalAttribute{NORMAL} <: HomogenousAttributes{(NORMAL,)}
-    normal::Vector{NORMAL}
+immutable NormalAttribute{T} <: HomogenousAttributes{(Normal3{T},)}
+    normal::Vector{Normal3{T}}
 end
 type Mesh{V, F, A <: MeshAttribute}
     vertices    ::Vector{V}
