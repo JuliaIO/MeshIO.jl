@@ -17,6 +17,13 @@ export NormalAttribute
 export vertices
 export faces
 export attributes
+export attributelist
+
+
+typealias UVWNormalMesh{TV, TF} Mesh{Point3{TV}, Triangle{TF}, UVWNormalAttribute{TV}}
+typealias GLUVWNormalMesh UVWNormalMesh{Float32, Uint32}
+export UVWMesh
+export GLUVWMesh
 
 
 typealias UVWMesh{TV, TF} Mesh{Point3{TV}, Triangle{TF}, UVWAttribute{TV}}
@@ -41,5 +48,4 @@ typealias GLMesh2D Mesh2D{Float32, Uint32}
 
 export Mesh2D
 export GLMesh2D
-
 end # module

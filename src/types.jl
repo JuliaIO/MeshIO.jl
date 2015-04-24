@@ -24,20 +24,41 @@ immutable UVNormalAttribute{TexCoordinate, NORMAL} <: HomogenousAttributes{(TexC
     uv::Vector{TexCoordinate}
     normal::Vector{NORMAL}
 end
+call{TexCoordinate, NORMAL}(::Type{UVNormalAttribute{TexCoordinate, NORMAL}}) = UVNormalAttribute(TexCoordinate[], NORMAL[])
 
+immutable UVWNormalAttribute{TexCoordinate, NORMAL} <: HomogenousAttributes{(TexCoordinate, NORMAL)}
+    uvw::Vector{TexCoordinate}
+    normal::Vector{NORMAL}
+end
 immutable NormalAttribute{T} <: HomogenousAttributes{(Normal3{T},)}
     normal::Vector{Normal3{T}}
 end
-type Mesh{V, F, A <: MeshAttribute}
-    vertices    ::Vector{V}
-    faces       ::Vector{F}
+
+
+function call{HT <: HomogenousAttributes}(::Type{HT})
+    empty_attributes = map(attrib_type -> attrib_type[], attributelist(HT))
+    HT(empty_attributes...)
+end
+getindex(a::HomogenousAttributes, ::Type{Normal3}) = a.normal
+getindex(a::HomogenousAttributes, ::Type{UVW})     = a.uvw
+getindex(a::HomogenousAttributes, ::Type{UV})      = a.uv
+
+
+
+
+type Mesh{VT, FT, A <: MeshAttribute}
+    vertices    ::Vector{VT}
+    faces       ::Vector{FT}
     attributes  ::A
 end
 
-attributes{HMA <: HomogenousAttributes}(m::Type{HMA}) = isleaftype(HMA) ? attributes(super(HMA)) : HMA.parameters[1]
+call{VT, FT, A <: MeshAttribute}(::Type{Mesh{VT, FT, A}}) = Mesh(VT[], FT[], A())
+
+attributelist{HMA <: HomogenousAttributes}(m::Type{HMA}) = isleaftype(HMA) ? attributelist(super(HMA)) : HMA.parameters[1]
+attributelist{VT, FT, A<: HomogenousAttributes}(m::Mesh{VT, FT, A}) = [VT, FT, attributelist(A)...]
+
 attributes(m::Mesh) = m.attributes
 attributes{M <: Mesh}(m::Type{M}) = M.parameters[3]
-
 
 
 
