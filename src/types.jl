@@ -12,6 +12,8 @@ type Textured{N, ImageType <: Image} <: MeshAttribute
     meta::Dict{Symbol, Any} # Description of what the texture does?
 end
 
+
+
 abstract HomogenousAttributes{Attributes} <: MeshAttribute
 
 immutable UVAttribute{T} <: HomogenousAttributes{(UV{T},)}
@@ -24,24 +26,34 @@ immutable UVNormalAttribute{TexCoordinate, NORMAL} <: HomogenousAttributes{(TexC
     uv::Vector{TexCoordinate}
     normal::Vector{NORMAL}
 end
+
 call{TexCoordinate, NORMAL}(::Type{UVNormalAttribute{TexCoordinate, NORMAL}}) = UVNormalAttribute(TexCoordinate[], NORMAL[])
 
 immutable UVWNormalAttribute{TexCoordinate, NORMAL} <: HomogenousAttributes{(TexCoordinate, NORMAL)}
     uvw::Vector{TexCoordinate}
     normal::Vector{NORMAL}
 end
-immutable NormalAttribute{T} <: HomogenousAttributes{(Normal3{T},)}
+immutable NormalAttribute{NORMAL} <: HomogenousAttributes{(NORMAL,)}
+    normal::Vector{NORMAL}
+end
+immutable NormalColorAttribute{T, C <: Color} <: MeshAttribute
     normal::Vector{Normal3{T}}
+    color::C
 end
 
+immutable NormalGenericAttribute{ID, C, T} <: MeshAttribute
+    normal::Vector{Normal3{T}}
+    attribute_id::Vector{ID}
+    attributes::Vector{C}
+end
 
 function call{HT <: HomogenousAttributes}(::Type{HT})
     empty_attributes = map(attrib_type -> attrib_type[], attributelist(HT))
     HT(empty_attributes...)
 end
-getindex(a::HomogenousAttributes, ::Type{Normal3}) = a.normal
-getindex(a::HomogenousAttributes, ::Type{UVW})     = a.uvw
-getindex(a::HomogenousAttributes, ::Type{UV})      = a.uv
+getindex{T <: Normal3}(a::HomogenousAttributes, ::Type{T}) = a.normal
+getindex{T <: UVW}(a::HomogenousAttributes, ::Type{T})     = a.uvw
+getindex{T <: UV}(a::HomogenousAttributes, ::Type{T})      = a.uv
 
 
 
