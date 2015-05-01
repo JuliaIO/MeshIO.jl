@@ -15,6 +15,8 @@ immutable HomogenousMesh{VertT, FaceT, NormalT, TexCoordT, ColorT, AttribT, Attr
   attributes          ::AttribT
   attribute_id        ::Vector{AttribIDT}
 end
+
+# Creates a mesh from a file
 # This function should really be defined in FileIO, but can't as it's ambigous with every damn constructor...
 # Its nice, as you can simply do something like GLNormalMesh(file"mesh.obj")
 call{T <: Mesh}(::Type{T}, f::File) = read(f, T)
@@ -28,9 +30,9 @@ colortype             {_1, _2, _3, _4, ColorT,    _5, _6}(::Type{HomogenousMesh{
 
 # Bad, bad name! But it's a little tricky to filter out faces and verts from the attributes, after get_attribute
 attributes_noVF(m::Mesh) = filter((key,val) -> (val != nothing && val != Void[]), Dict{Symbol, Any}(map(field->(field => m.(field)), fieldnames(typeof(m))[3:end])))
-#Gets all non Void attributes from a mesh
+#Gets all non Void attributes from a mesh in form of a Dict fieldname => value
 attributes(m::Mesh) = filter((key,val) -> (val != nothing && val != Void[]), all_attributes(m))
-#Gets all non Void attributes types from a mesh type
+#Gets all non Void attributes types from a mesh type fieldname => ValueType
 attributes{M <: HMesh}(m::Type{M}) = filter((key,val) -> (val != Void && val != Vector{Void}), all_attributes(M))
 
 all_attributes{M <: HMesh}(m::Type{M}) = Dict{Symbol, Any}(map(field -> (field => fieldtype(M, field)), fieldnames(M)))
@@ -85,31 +87,32 @@ function convert{HM1 <: HMesh}(::Type{HM1}, any)
   HM1(result)
 end
 
-# triangulate a quad. Could be written more generic
-function triangulate{FT1, FT2}(::Type{Face3{FT1}}, f::Face4{FT2})
-  (Face3{FT1}(f[1], f[2], f[3]), Face3{FT1}(f[3], f[4], f[1]))
-end
 
-function convert{FT1, FT2}(::Type{Vector{Face3{FT1}}}, f::Vector{Face4{FT2}})
-  fsn = fill(Face3{FT}, length(fs)*2)
-  for i=1:2:length(fs)
-    a, b = triangulate(Face3{FT}, fs[div(i,2)])
-    fsn[i] = a
-    fsn[i+1] = b
-  end
-  return fsn
-end
-
-
+#Should be: 
+#function call{M <: HMesh, VT <: Point, FT <: Face}(::Type{M}, vertices::Vector{VT}, faces::Vector{FT})
+# Haven't gotten around to implement the types correctly with abstract types in FixedSizeArrays
 function call{M <: HMesh, VT, FT <: Face}(::Type{M}, vertices::Vector{Point3{VT}}, faces::Vector{FT})
     msh = PlainMesh{VT, FT}(vertices=vertices, faces=faces)
     convert(M, msh)
 end
 
-# Creates a mesh from keyword arguments, which have to match the field types
+get_default(x::Type) = nothing
+get_default{X <: Array}(x::Type{X}) = Void[]
+
+# generic constructor for abstract HomogenousMesh, infering the types from the keywords (which have to match the field names)
+# some problems with the dispatch forced me to use this method name... need to further investigate this
+function homogenousmesh(attribs::Dict{Symbol, Any})
+    newfields = []
+    for name in fieldnames(HMesh)
+        push!(newfields, get(attribs, name, get_default(fieldtype(HMesh, name))))
+    end
+    HomogenousMesh(newfields...)
+end
+
+# Creates a mesh from keyword arguments, which have to match the field types of the given concrete mesh
 call{M <: HMesh}(::Type{M}; kw_args...) = M(Dict{Symbol, Any}(kw_args))
 
-# Creates a new mesh from a dict of fieldname => value
+# Creates a new mesh from a dict of fieldname => value and converts the types to the given meshtype
 function call{M <: HMesh}(::Type{M}, attribs::Dict{Symbol, Any})
     newfields = map(zip(fieldnames(HomogenousMesh), M.parameters)) do field_target_type
         field, target_type = field_target_type
@@ -128,7 +131,7 @@ function call{M <: HMesh}(::Type{M}, mesh::Mesh, attributes::Dict{Symbol, Any})
     HomogenousMesh(newfields...)
 end
 
-#Creates a new mesh from an old one, with changed attributes given by the keyword arguments
+#Creates a new mesh from an old one, with a new constant attribute (like a color)
 function call{HM <: HMesh, ConstAttrib}(::Type{HM}, mesh::Mesh, constattrib::ConstAttrib)
     result = Dict{Symbol, Any}()
     for (field, target_type) in zip(fieldnames(HM), HM.parameters)
@@ -140,8 +143,17 @@ function call{HM <: HMesh, ConstAttrib}(::Type{HM}, mesh::Mesh, constattrib::Con
     end
     HM(result)
 end
+function add_attribute(m::Mesh, attribute)
+    attribs = attributes(m) # get all attribute values as a Dict fieldname => value
+    attribs[:color] = attribute # color will probably be renamed to attribute. not sure yet...
+    homogenousmesh(attribs)
+end
 
-
+#Creates a new mesh from a pair of any and a const attribute
+function call{HM <: HMesh, ConstAttrib}(::Type{HM}, x::(Any, ConstAttrib))
+    any, const_attribute = x
+    add_attribute(HM(any), const_attribute)
+end
 
 #=
 function show{M <: HMesh}(io::IO, ::Type{M})
