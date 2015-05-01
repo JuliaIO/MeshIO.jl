@@ -176,7 +176,11 @@ end
 # Define getindex for your own meshtype, to easily convert it to Homogenous attributes
 
 #Gets the normal attribute to a mesh
-getindex{VT}(mesh::HMesh, ::Type{Point3{VT}}) =  mesh.vertices
+function getindex{VT}(mesh::HMesh, T::Type{Point3{VT}})
+    vts = mesh.vertices
+    eltype(vts) == T       && return vts
+    eltype(vts) <: Point3   && return map(T, vts)
+end
 
 # gets the wanted face type
 function getindex{FT, Offset}(mesh::HMesh, T::Type{Face3{FT, Offset}})
@@ -190,11 +194,11 @@ function getindex{FT, Offset}(mesh::HMesh, T::Type{Face3{FT, Offset}})
 end
 
 #Gets the normal attribute to a mesh
-function getindex{NT}(mesh::HMesh, ::Type{Normal3{NT}})
+function getindex{NT}(mesh::HMesh, T::Type{Normal3{NT}})
   n = mesh.normals
-  eltype(n) == Normal3{NT}   && return n
-  eltype(n) <: Normal3       && return map(Normal3{NT1}, n)
-  n == Nothing[]             && return normals(mesh.vertices, mesh.faces, Normal3{NT})
+  eltype(n) == T             && return n
+  eltype(n) <: Normal3       && return map(T, n)
+  n == Nothing[]             && return normals(mesh.vertices, mesh.faces, T)
 end
 
 #Gets the uv attribute to a mesh, or creates it, or converts it
@@ -234,6 +238,7 @@ end
 # Kinda random to have this here, but it's needed for the minimal set of transformations
 function normals{VT, FT <: Face}(vertices::Vector{Point3{VT}}, faces::Vector{FT}, NT = Normal3{VT})
     normals_result = zeros(Point3{VT}, length(vertices)) # initilize with same type as verts but with 0
+    println("nasd ", length(normals_result))
     for face in faces
         v1, v2, v3 = vertices[face]
         a = v2 - v1
@@ -241,7 +246,9 @@ function normals{VT, FT <: Face}(vertices::Vector{Point3{VT}}, faces::Vector{FT}
         n = cross(a,b)
         normals_result[face] = normals_result[face] .+ n
     end
+
     map!(normalize, normals_result)
     normals_result = convert(NT, normals_result)
+    println(NT)
     normals_result
 end
