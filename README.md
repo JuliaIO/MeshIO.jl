@@ -36,6 +36,18 @@ v1, v2, v3 = vertices[face]
 ```
 Also, the importer is sensitive to this, so if you always want to work with 0-indexed faces (like it makes sense for opengl based visualizations), you can parse the mesh already as an 0-indexed mesh, by just defining the mesh format to use Face3{T, -1}. (only the OBJ importer yet)
 
+Small example to demonstrate the advantage for IO:
+```Julia
+#Export takes any mesh
+function write{M <: Mesh}(msh::M, fn::File{:ply_binary})
+    # even if the native mesh format doesn't have an array of dense points or faces, the correct ones will 
+    # now be created, or converted:
+    vts = msh[Point3{Float32}] # I know ply_binary needs Point3{Float32}
+    fcs = msh[Face3{Int32, -1}] # And 0 indexed Int32 faces.
+    #write code...
+end
+  ```
+    
 
 ### TODO
 
