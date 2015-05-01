@@ -34,5 +34,10 @@ To put this one level furter, the Face type has the index offset relative to jul
 ```Julia
 v1, v2, v3 = vertices[face]
 ```
-Also, the importer is sensitive to this, so if you always want to work with 0-indexed faces (like it makes sense for opengl based visualizations), you can parse the mesh already as an 0-indexed mesh, by just defining the mesh format to use Face3{T, -1}. 
+Also, the importer is sensitive to this, so if you always want to work with 0-indexed faces (like it makes sense for opengl based visualizations), you can parse the mesh already as an 0-indexed mesh, by just defining the mesh format to use Face3{T, -1}. (only the OBJ importer yet)
+TODO's
+
+1. Port all the other importers/exporters to use the new mesh type and the FileIO API
+2. Include more meshtypes for more exotic formats
+3. Write tests
 
