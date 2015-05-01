@@ -24,7 +24,7 @@ This together with convert enables us to create mesh primitives like this:
 ```Julia
 MeshType(Cube(...))
 MeshType(Sphere(...))
-MeshType(Volume, 0.4f0) (isovalue)
+MeshType(Volume, 0.4f0) #0.4f0 => isovalue
 ```
 
 Similarly, I can pass a meshtype to an IO function, which then parses only the attributes that I really need.
