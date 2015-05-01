@@ -15,9 +15,16 @@ immutable HomogenousMesh{VertT, FaceT, NormalT, TexCoordT, ColorT, AttribT, Attr
   attributes          ::AttribT
   attribute_id        ::Vector{AttribIDT}
 end
-typealias HMesh HomogenousMesh
+# This function should really be defined in FileIO, but can't as it's ambigous with every damn constructor...
+# Its nice, as you can simply do something like GLNormalMesh(file"mesh.obj")
+call{T <: Mesh}(::Type{T}, f::File) = read(f, T)
 
-facetype{_1, FaceT, _2, _3, _4, _5, _6}(::Type{HomogenousMesh{_1, FaceT, _2, _3, _4, _5, _6}}) = FaceT
+typealias HMesh HomogenousMesh
+vertextype            {_VertT,    _1, _2, _3, _4, _5, _6}(::Type{HomogenousMesh{_VertT,    _1, _2, _3, _4, _5, _6}}) = _VertT
+facetype              {_1, FaceT,     _2, _3, _4, _5, _6}(::Type{HomogenousMesh{_1, FaceT,     _2, _3, _4, _5, _6}}) = FaceT
+normaltype            {_1, _2, NormalT,   _3, _4, _5, _6}(::Type{HomogenousMesh{_1, _2, NormalT,   _3, _4, _5, _6}}) = NormalT
+texturecoordinatetype {_1, _2, _3, TexCoordT, _4, _5, _6}(::Type{HomogenousMesh{_1, _2, _3, TexCoordT, _4, _5, _6}}) = TexCoordT
+colortype             {_1, _2, _3, _4, ColorT,    _5, _6}(::Type{HomogenousMesh{_1, _2, _3, _4, ColorT,    _5, _6}}) = ColorT
 
 # Bad, bad name! But it's a little tricky to filter out faces and verts from the attributes, after get_attribute
 attributes_noVF(m::Mesh) = filter((key,val) -> (val != nothing && val != Void[]), Dict{Symbol, Any}(map(field->(field => m.(field)), fieldnames(typeof(m))[3:end])))

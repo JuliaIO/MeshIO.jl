@@ -15,6 +15,7 @@ import Base.show
 import Base.call
 
 include("types.jl")
+include("io/ply.jl")
 
 export Mesh
 export HomogenousMesh
@@ -39,7 +40,13 @@ export GLNormalAttributeMesh
 export GLNormalColorMesh
 export GLNormalUVWMesh
 
+export vertextype
 export facetype
+export normaltype
+export texturecoordinatetype
+export colortype
+
+
 export attributes
 export attributes_noVF
 

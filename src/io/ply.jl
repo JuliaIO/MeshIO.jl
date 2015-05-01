@@ -2,9 +2,16 @@ export exportBinaryPly,
        exportAsciiPly,
        importAsciiPly
 
-function write(msh::Mesh, fn::File{:plyb})
-    vts = vertices(msh)
-    fcs = faces(msh)
+immutable FileEnding{Disambiguated_Ending}
+    real_ending  ::Symbol
+    magic_number ::Vector{Uint8}
+end
+const ply_binary = FileEnding{:ply_binary}(:ply, b"ply\nformat binary_little_endian 1.0\n")
+
+function Base.write{M <: Mesh}(msh::M, fn::File{:ply_binary})
+
+    vts = msh[Point3{Float32}]
+    fcs = msh[Face3{Int32, -1}]
 
     nV = length(vts)
     nF = length(fcs)
@@ -20,26 +27,21 @@ function write(msh::Mesh, fn::File{:plyb})
     write(io, "end_header\n")
 
     # write the vertices and faces
-    for v in vts
-        write(io, convert(Float32, v[1]))
-        write(io, convert(Float32, v[2]))
-        write(io, convert(Float32, v[3]))
-    end
+    write(io, vts)
 
     for f in fcs
         write(io, convert(Uint8, 3))
-        write(io, convert(Int32, f[1]-1))
-        write(io, convert(Int32, f[2]-1))
-        write(io, convert(Int32, f[3]-1))
+        write(io, f...)
     end
     close(io)
 end
+const ply_ascii = FileEnding{:ply_binary}(:ply, b"ply\nformat binary_little_endian 1.0\n")
 
 
-function exportAsciiPly(msh::Mesh, fn::File{:ply})
+function Base.write{M <: Mesh}(msh::M, fn::File{:ply_ascii})
 
-    vts = vertices(msh)
-    fcs = faces(msh)
+    vts = msh[Point3{Float32}]
+    fcs = msh[Face3{Int32, -1}]
 
     nV = length(vts)
     nF = length(fcs)
@@ -57,28 +59,24 @@ function exportAsciiPly(msh::Mesh, fn::File{:ply})
 
     # write the vertices and faces
     for v in vts
-        print(io, "$(v[1]) $(v[2]) $(v[3])\n")
+        println(io, join(v, " "))
     end
-
     for f in fcs
-        print(io, "3 $(f[1]-1) $(f[2]-1) $(f[3]-1)\n")
+        println(io, length(f), " ", join(f, " "))
     end
-
     close(io)
 end
 
 
-function read(fn::File{:ply}; topology=false)
+function Base.read(fn::File{:ply_ascii}, typ=GLNormalMesh)
     io = open(fn, "r")
-    mesh = importAsciiPly(io, topology=topology)
+    mesh = read_ascii_ply(io, typ)
     close(io)
     return mesh
 end
 
 
-function importAsciiPly(io::IO; MT=GLNormalMesh, topology=false)
-    mesh = MT()
-    
+function read_ascii_ply(io::IO, typ=GLNormalMesh)
     nV = 0
     nF = 0
 
@@ -89,23 +87,38 @@ function importAsciiPly(io::IO; MT=GLNormalMesh, topology=false)
 
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
-            nV = int(split(line)[3])
+            nV = parse(Int, split(line)[3])
         elseif startswith(line, "element face")
-            nF = int(split(line)[3])
+            nF = parse(Int, split(line)[3])
         elseif startswith(line, "property")
             push!(properties, line)
         end
         line = readline(io)
     end
+    VertexType  = vertextype(typ)
+    FaceType    = facetype(typ)
+    FaceEltype = eltype(FaceType)
+
+    vts         = Array(VertexType, nV)
+    fcs         = Array(FaceType, nF)
+
     # read the data
     for i = 1:nV
-        push!(vts, eltype(vts)(split(readline(io)))) # line looks like: "-0.018 0.038 0.086"
+        vts[i] = VertexType(split(readline(io))) # line looks like: "-0.018 0.038 0.086"
     end
 
     for i = 1:nF
-        push!(fcs, Face4(split(readline(io)))) # line looks like: "3 0 1 2"
+        line    = split(readline(io))
+        len     = parse(Int, shift!(line))
+        if len == 3 # workaround for not having generic Face type like Face{4, T}
+            fcs[i]  = FaceType(Face3{FaceEltype, -1}(line)) # line looks like: "3 0 1 2"
+        elseif len == 4
+            fcs[i]  = FaceType(Face4{FaceEltype, -1}(line))
+        else 
+            error("face type with length $len is not supported yet")
+        end
     end
 
 
-    return Mesh{Vertex, Face{Int}}(vts, fcs, topology)
+    return typ(vts, fcs)
 end
