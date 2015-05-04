@@ -114,7 +114,7 @@ function read_ascii_ply(io::IO, typ=GLNormalMesh)
             fcs[i]  = FaceType(Face3{FaceEltype, -1}(line)) # line looks like: "3 0 1 2"
         elseif len == 4
             fcs[i]  = FaceType(Face4{FaceEltype, -1}(line))
-        else 
+        else
             error("face type with length $len is not supported yet")
         end
     end

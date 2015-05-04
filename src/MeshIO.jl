@@ -16,6 +16,7 @@ import Base.call
 
 include("types.jl")
 include("io/ply.jl")
+include("io/vtkxml.jl")
 
 export Mesh
 export HomogenousMesh
