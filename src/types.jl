@@ -95,8 +95,7 @@ function call{M <: HMesh, VT, FT <: Face}(::Type{M}, vertices::Vector{Point3{VT}
     msh = PlainMesh{VT, FT}(vertices=vertices, faces=faces)
     convert(M, msh)
 end
-
-get_default(x::Type) = nothing
+get_default(x::Union(Type, TypeVar)) = nothing
 get_default{X <: Array}(x::Type{X}) = Void[]
 
 # generic constructor for abstract HomogenousMesh, infering the types from the keywords (which have to match the field names)
@@ -150,7 +149,7 @@ function add_attribute(m::Mesh, attribute)
 end
 
 #Creates a new mesh from a pair of any and a const attribute
-function call{HM <: HMesh, ConstAttrib}(::Type{HM}, x::(Any, ConstAttrib))
+function call{HM <: HMesh, ConstAttrib}(::Type{HM}, x::@compat(Tuple{Any, ConstAttrib}))
     any, const_attribute = x
     add_attribute(HM(any), const_attribute)
 end

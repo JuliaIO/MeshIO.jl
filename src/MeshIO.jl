@@ -6,7 +6,7 @@ using GeometryTypes
 using ColorTypes
 using ImageIO
 using FixedPointNumbers
-
+using Compat
 
 import Base.merge
 import Base.convert
