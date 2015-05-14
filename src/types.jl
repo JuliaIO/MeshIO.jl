@@ -233,21 +233,3 @@ function getindex{T <: Color}(mesh::HMesh, ::Type{T})
   c == nothing      && return DefaultColor
   convert(T, c)
 end
-
-# Kinda random to have this here, but it's needed for the minimal set of transformations
-function normals{VT, FT <: Face}(vertices::Vector{Point3{VT}}, faces::Vector{FT}, NT = Normal3{VT})
-    normals_result = zeros(Point3{VT}, length(vertices)) # initilize with same type as verts but with 0
-    println("nasd ", length(normals_result))
-    for face in faces
-        v1, v2, v3 = vertices[face]
-        a = v2 - v1
-        b = v3 - v1
-        n = cross(a,b)
-        normals_result[face] = normals_result[face] .+ n
-    end
-
-    map!(normalize, normals_result)
-    normals_result = convert(NT, normals_result)
-    println(NT)
-    normals_result
-end
