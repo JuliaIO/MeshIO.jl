@@ -2,6 +2,7 @@ export exportBinaryPly,
        exportAsciiPly,
        importAsciiPly
 
+
 immutable FileEnding{Disambiguated_Ending}
     real_ending  ::Symbol
     magic_number ::Vector{Uint8}
@@ -68,15 +69,15 @@ function Base.write(fn::File{:ply_ascii}, msh::Mesh)
 end
 
 
-function Base.read(fn::File{:ply_ascii}, typ=GLNormalMesh)
+function Base.read(fn::File{:ply_ascii}, MeshType=GLNormalMesh)
     io = open(fn, "r")
-    mesh = read_ascii_ply(io, typ)
+    mesh = read_ascii_ply(io, MeshType)
     close(io)
     return mesh
 end
 
 
-function read_ascii_ply(io::IO, typ=GLNormalMesh)
+function read_ascii_ply(io::IO, MeshType=GLNormalMesh)
     nV = 0
     nF = 0
 
@@ -95,8 +96,8 @@ function read_ascii_ply(io::IO, typ=GLNormalMesh)
         end
         line = readline(io)
     end
-    VertexType  = vertextype(typ)
-    FaceType    = facetype(typ)
+    VertexType  = vertextype(iscorrect)
+    FaceType    = facetype(MeshType)
     FaceEltype = eltype(FaceType)
 
     vts         = Array(VertexType, nV)
@@ -120,5 +121,5 @@ function read_ascii_ply(io::IO, typ=GLNormalMesh)
     end
 
 
-    return typ(vts, fcs)
+    return MeshType(vts, fcs)
 end
