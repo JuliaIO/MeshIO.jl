@@ -5,8 +5,8 @@ export exportBinaryPly,
 add_format(format"PLY_ASCII", b"ply\nformat ascii 1.0\n", ".ply")
 add_format(format"PLY_BINARY", b"ply\nformat binary_little_endian 1.0\n", ".ply")
 
-add_loader(format"PLY_ASCII", :GeometryTypes)
-add_saver(format"PLY_BINARY", :GeometryTypes)
+add_loader(format"PLY_ASCII", :MeshIO)
+add_saver(format"PLY_BINARY", :MeshIO)
 
 function save(f::File{format"PLY_BINARY"}, msh::Mesh)
 
@@ -35,8 +35,6 @@ function save(f::File{format"PLY_BINARY"}, msh::Mesh)
     end
     close(io)
 end
-const ply_ascii = FileEnding{:ply_binary}(:ply, b"ply\nformat binary_little_endian 1.0\n")
-
 
 function save(f::File{format"PLY_ASCII"}, msh::Mesh)
 
@@ -67,8 +65,8 @@ function save(f::File{format"PLY_ASCII"}, msh::Mesh)
     close(io)
 end
 
-function load(f::File{format"PLY_ASCII"}; typ=GLNormalMesh)
-    io   = open(fn)
+function load(fn::File{format"PLY_ASCII"}; typ=GLNormalMesh)
+    io = open(fn)
     skipmagic(io, f)
     mesh = load(io, typ)
     close(io)
@@ -120,15 +118,10 @@ function load(fs::Stream{format"PLY_ASCII"}; typ=GLNormalMesh)
     end
 
     return MeshType(vts, fcs)
-endexport exportBinaryPly,
-       exportAsciiPly,
-       importAsciiPly
+end
 
-add_format(format"PLY_ASCII", b"ply\nformat ascii 1.0\n", ".ply")
-add_format(format"PLY_BINARY", b"ply\nformat binary_little_endian 1.0\n", ".ply")
 
-add_loader(format"PLY_ASCII", :GeometryTypes)
-add_saver(format"PLY_BINARY", :GeometryTypes)
+
 
 function save(f::File{format"PLY_BINARY"}, msh::Mesh)
 
@@ -157,8 +150,6 @@ function save(f::File{format"PLY_BINARY"}, msh::Mesh)
     end
     close(io)
 end
-const ply_ascii = FileEnding{:ply_binary}(:ply, b"ply\nformat binary_little_endian 1.0\n")
-
 
 function save(f::File{format"PLY_ASCII"}, msh::Mesh)
 
