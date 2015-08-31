@@ -28,7 +28,7 @@ function render{T, O}(i::Int, f::Face{4, T, O})
     string("E4Q $i ", join(Face{4, Cuint, 0}(f), " "))
 end
 # | Write @Mesh@ to an IOStream
-function FileIO.save(con::Stream{format"2DM"}, m::Mesh)
+function FileIO.save(con::Stream{format"2DM"}, m::AbstractMesh)
     println(con, "MESH2D")
     for (i, f) in enumerate(m.faces)
         println(con, render(i, f))
@@ -40,4 +40,4 @@ function FileIO.save(con::Stream{format"2DM"}, m::Mesh)
     nothing
 end
 
-Base.writemime(io::IO, ::MIME"model/2dm", mesh::Mesh) = FileIO.save(io, mesh)
+Base.writemime(io::IO, ::MIME"model/2dm", mesh::AbstractMesh) = FileIO.save(io, mesh)

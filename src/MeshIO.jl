@@ -6,8 +6,10 @@ using GeometryTypes
 using ColorTypes
 using Compat
 
+include("io/off.jl")
 include("io/ply.jl")
+include("io/stl.jl")
+include("io/2dm.jl")
 
-call{T <: Mesh}(::Type{T}, f::FileIO.File) = read(f, T)
 
 end # module

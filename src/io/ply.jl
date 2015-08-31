@@ -1,4 +1,4 @@
-function FileIO.save(f::File{format"PLY_BINARY"}, msh::Mesh)
+function FileIO.save(f::File{format"PLY_BINARY"}, msh::AbstractMesh)
 
     vts = msh[Point3{Float32}]
     fcs = msh[Face3{Int32, -1}]
@@ -26,7 +26,7 @@ function FileIO.save(f::File{format"PLY_BINARY"}, msh::Mesh)
     close(io)
 end
 
-function FileIO.save(f::File{format"PLY_ASCII"}, msh::Mesh)
+function FileIO.save(f::File{format"PLY_ASCII"}, msh::AbstractMesh)
 
     vts = msh[Point3{Float32}]
     fcs = msh[Face3{Int32, -1}]
@@ -53,14 +53,6 @@ function FileIO.save(f::File{format"PLY_ASCII"}, msh::Mesh)
         println(io, length(f), " ", join(f, " "))
     end
     close(io)
-end
-
-function FileIO.load(fn::File{format"PLY_ASCII"}; MeshType=GLNormalMesh)
-    io = open(fn)
-    skipmagic(io, f)
-    mesh = load(io, MeshType)
-    close(io)
-    return mesh
 end
 
 function FileIO.load(fs::Stream{format"PLY_ASCII"}; MeshType=GLNormalMesh)

@@ -5,11 +5,11 @@ export exportThreejs, importThreejs
 
 import Base.writemime
 
-function exportThreejs(msh::Mesh, fn::String)
+function exportThreejs(msh::AbstractMesh, fn::String)
          exportThreejs(msh, open(fn, "w"))
 end
 
-function exportThreejs(msh::Mesh, str::IO, closeAfterwards::Bool)
+function exportThreejs(msh::AbstractMesh, str::IO, closeAfterwards::Bool)
     vts = msh.vertices
     fcs = msh.faces
     nV = size(vts,1)
@@ -36,13 +36,13 @@ function exportThreejs(msh::Mesh, str::IO, closeAfterwards::Bool)
     end
 end
 
-exportThreejs(msh::Mesh, str::IO) = exportThreejs(msh, str, true)
+exportThreejs(msh::AbstractMesh, str::IO) = exportThreejs(msh, str, true)
 
-function writemime(io::IO, ::MIME"model/threejs", msh::Mesh)
+function writemime(io::IO, ::MIME"model/threejs", msh::AbstractMesh)
     exportSTL(msh, io)
 end
 
-function writemime(io::IO, ::MIME"text/html", msh::Mesh)
+function writemime(io::IO, ::MIME"text/html", msh::AbstractMesh)
     divID = string("mesh-display-", rand(Int64))
     write(io, """
         <div id="$divID"></div>
@@ -145,5 +145,5 @@ function importThreejs( fn::String, topology=true )
 
     topology = false
 
-    return Mesh{Vertex, Face{Int}}(vts, fcs, topology)
+    return AbstractMesh{Vertex, Face{Int}}(vts, fcs, topology)
 end
