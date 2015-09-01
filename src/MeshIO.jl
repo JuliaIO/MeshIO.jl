@@ -22,7 +22,7 @@ for format in [format"OBJ", format"PLY_ASCII", format"PLY_BINARY", format"STL_AS
 		end
 	end)
 end
-call{M <: AbstractMesh}(f::File, m::Type{M}) = load(f, m)
+call{M <: AbstractMesh}(m::Type{M}, f::AbstractString) = load(f, m)
 
 include("io/off.jl")
 include("io/ply.jl")
