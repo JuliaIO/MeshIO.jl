@@ -1,5 +1,6 @@
 module MeshIO
 
+Pkg.checkout("GeometryTypes")
 
 using GeometryTypes
 using ColorTypes
