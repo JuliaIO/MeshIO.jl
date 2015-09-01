@@ -9,4 +9,4 @@ notifications:
 # uncomment the following lines to override the default test script
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia --check-bounds=yes -e 'Pkg.clone("https://github.com/JuliaIO/FileIO.jl.git"); Pkg.clone(pwd()); Pkg.checkout("GeometryTypes"); Pkg.checkout("FileIO", "sd/improvements"); Pkg.build("MeshIO"); Pkg.test("MeshIO"; coverage=true)'
+  - julia --check-bounds=yes -e 'Pkg.clone("https://github.com/JuliaIO/FileIO.jl.git"); Pkg.clone(pwd()); Pkg.checkout("GeometryTypes"); Pkg.checkout("FileIO", "sd/improvements"); Pkg.checkout("ColorTypes", "sd/iterator"); Pkg.build("MeshIO"); Pkg.test("MeshIO"; coverage=true)'
