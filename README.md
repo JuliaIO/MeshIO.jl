@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/JuliaIO/MeshIO.jl.svg)](https://travis-ci.org/SimonDanisch/MeshIO.jl)
 [![codecov.io](http://codecov.io/github/JuliaIO/MeshIO.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaIO/MeshIO.jl?branch=master)
-[![Coverage Status](https://coveralls.io/repos/JuliaIO/MeshIO.jl/badge.svg?branch=fileio_api&service=github)](https://coveralls.io/github/JuliaIO/MeshIO.jl?branch=fileio_api)
+[![Coverage Status](https://coveralls.io/repos/JuliaIO/MeshIO.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaIO/MeshIO.jl?branch=master)
 
 WORK IN PROGRESS
 Starting to take the mesh defintions and IO operations from Meshes.jl and Meshes2.jl.
