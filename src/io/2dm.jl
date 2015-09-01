@@ -1,72 +1,47 @@
-export import2dm,
-       export2dm
-
-import Base.writemime
-
-function import2dm(file::String)
-    con = open(file, "r")
-    mesh = import2dm(con)
-    close(con)
-    return mesh
-end
-
-parseNode(w::Array{String}) = Vertex(float64(w[3]), float64(w[4]), float64(w[5]))
-
-parseTriangle(w::Array{String}) = Face{Int}(int(w[3]), int(w[4]), int(w[5]))
-
-# Qudrilateral faces are split up into triangles
-function parseQuad(w::Array{String})
-    w[7] = w[3]                     # making a circle
-    Face{Int}[Face{Int}(w[i], w[i+1], w[i+2]) for i = [3,5]]
-end
 
 # | Read a .2dm (SMS Aquaveo) mesh-file and construct a @Mesh@
-function import2dm(con::IO)
-    nd =  Vertex[]
-    ele = Face{Int}[]
-    for line = readlines(con)
-        line = chomp(line)
-        w = split(line)
-        if w[1] == "ND"
-            push!(nd, parseNode(w))
-        elseif w[1] == "E3T"
-            push!(ele,parseTriangle(w))
-        elseif w[1] == "E4Q"
-            append!(ele, parseQuad(w))
-        else
-            continue
+function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
+    FT       = facetype(MeshType)
+    VT       = vertextype(MeshType)
+    faces    = FT[]
+    vertices = VT[]
+    io = stream(st)
+    for line = readlines(io)
+        if !isempty(line) && !iscntrl(line)
+            line = chomp(line)
+            w = split(line)
+            if w[1] == "ND"
+                push!(vertices, Point{3, Float32}(w[3:end]))
+            elseif w[1] == "E3T"
+                push!(faces, Triangle{Cuint}(w[3:end]))
+            elseif w[1] == "E4Q"
+                push!(faces, Face{4, Cuint, 0}(w[3:end]))
+            else
+                continue
+            end
         end
     end
-    Mesh{Vertex, Face{Int}}(nd,ele)
+    MeshType(vertices, faces)
 end
 
+function render{T, O}(i::Int, f::Face{3, T, O})
+    string("E3T $i ", join(Face{3, Cuint, 0}(f), " "))
+end
 
+function render{T, O}(i::Int, f::Face{4, T, O})
+    string("E4Q $i ", join(Face{4, Cuint, 0}(f), " "))
+end
 # | Write @Mesh@ to an IOStream
-function export2dm(con::IO,m::Mesh)
-    function renderVertex(i::Int,v::Vertex)
-        "ND $i $(v.e1) $(v.e2) $(v.e3)\n"
+function save(st::Stream{format"2DM"}, m::AbstractMesh)
+    io = stream(st)
+    println(io, "MESH2D")
+    for (i, f) in enumerate(m.faces)
+        println(io, render(i, f))
     end
-    function renderFace(i::Int, f::Face)
-        "E3T $i $(f.v1) $(f.v2) $(f.v3) 0\n"
-    end
-    write(con, "MESH2D\n")
-    for i = 1:length(m.faces)
-        write(con, renderFace(i, m.faces[i]))
-    end
-    for i = 1:length(m.vertices)
-        write(con, renderVertex(i, m.vertices[i]))
+    for (i, v) in enumerate(m.vertices)
+        println(io, "ND $i ", join(v, " "))
     end
     nothing
 end
 
-function writemime(io::IO, ::MIME"model/2dm", mesh::Mesh)
-    export2dm(io, mesh)
-end
-
-# | Write a @Mesh@ to file in SMS-.2dm-file-format
-function exportTo2dm(f::String,m::Mesh)
-    con = open(f, "w")
-    export2dm(con, m)
-    close(con)
-    nothing
-end
+Base.writemime(io::IO, ::MIME"model/2dm", mesh::AbstractMesh) = save(io, mesh)

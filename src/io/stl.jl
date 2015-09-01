@@ -1,140 +1,108 @@
-export exportStl,
-       importBinarySTL,
-       importAsciiSTL
-
 import Base.writemime
 
-function exportStl(msh::Mesh, fn::String)
-  exportStl(msh, open(fn, "w"))
-end
 
-function exportStl(msh::Mesh, str::IO, closeAfterwards::Bool)
-    vts = msh.vertices
-    fcs = msh.faces
-    nV = size(vts,1)
-    nF = size(fcs,1)
+function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
+    io      = stream(f)
+    vts     = msh[Point{3, Float32}]
+    fcs     = msh[Face{3, Cuint, -1}]
+    normals = msh[Normal{3, Float32}]
+
+    nV = length(vts)
+    nF = length(fcs)
 
     # write the header
-    write(str,"solid vcg\n")
-
+    write(io,"solid vcg\n")
     # write the data
     for i = 1:nF
         f = fcs[i]
-        n = [0,0,0] # TODO: properly compute normal(f)
-        @printf str "  facet normal %e %e %e\n" n[1] n[2] n[3]
-        write(str,"    outer loop\n")
-        v = vts[f.v1]
-        @printf str "      vertex  %e %e %e\n" v[1] v[2] v[3]
+        n = normals[i] # TODO: properly compute normal(f)
+        v1, v2, v3 = vts[f]
+        @printf io "  facet normal %e %e %e\n" n[1] n[2] n[3]
+        write(io,"    outer loop\n")
 
-        v = vts[f.v2]
-        @printf str "      vertex  %e %e %e\n" v[1] v[2] v[3]
+        @printf io "      vertex  %e %e %e\n" v1[1] v1[2] v1[3]
+        @printf io "      vertex  %e %e %e\n" v2[1] v2[2] v2[3]
+        @printf io "      vertex  %e %e %e\n" v3[1] v3[2] v3[3]
 
-        v = vts[f.v3]
-        @printf str "      vertex  %e %e %e\n" v[1] v[2] v[3]
-
-        write(str,"    endloop\n")
-        write(str,"  endfacet\n")
+        write(io,"    endloop\n")
+        write(io,"  endfacet\n")
     end
-
-    write(str,"endsolid vcg\n")
-    if closeAfterwards
-        close(str)
-    end
-end
-
-exportStl(msh::Mesh, str::IO) = exportStl(msh, str, true)
-
-function writemime(io::IO, ::MIME"model/stl+ascii", msh::Mesh)
-  exportSTL(msh, io)
+    write(io,"endsolid vcg\n")
 end
 
 
-function importBinarySTL(file::String; topology=false)
-    fn = open(file,"r")
-    mesh = importBinarySTL(fn, topology=topology)
-    close(fn)
-    return mesh
-end
+writemime(io::IO, ::MIME"model/stl+ascii", msh::AbstractMesh) = save(io, msh)
 
-function importBinarySTL(file::IO; topology=false, read_header=false)
+
+function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     #Binary STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
+    io = stream(fs)
+    readbytes(io, 80) # throw out header
 
-    binarySTLvertex(file) = Vertex(float64(read(file, Float32)),
-                                   float64(read(file, Float32)),
-                                   float64(read(file, Float32)))
+    triangle_count = read(io, Uint32)
+    FaceType    = facetype(MeshType)
+    VertexType  = vertextype(MeshType)
+    NormalType  = normaltype(MeshType)
 
-    vts = Vertex[]
-    fcs = Face{Int}[]
+    faces       = Array(FaceType,   triangle_count)
+    vertices    = Array(VertexType, triangle_count*3)
+    normals     = Array(NormalType, triangle_count*3)
+    i = 0
+    while !eof(io)
+        faces[i+1]      = Face{3, Int, -1}(i*3, i*3+1, i*3+2)
+        normals[i*3+1]  = NormalType(read(io, Float32), read(io, Float32), read(io, Float32))
+        normals[i*3+2]  = normals[i*3+2] # hurts, but we need per vertex normals
+        normals[i*3+3]  = normals[i*3+2]
+        vertices[i*3+1] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
+        vertices[i*3+2] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
+        vertices[i*3+3] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
 
-    if !read_header
-        readbytes(file, 80) # throw out header
+        skip(io, 2) # throwout 16bit attribute
+        i += 1
     end
-    read(file, Uint32) # throwout triangle count
-
-    vert_count = 0
-    vert_idx = [0,0,0]
-    while !eof(file)
-        normal = binarySTLvertex(file)
-        for i = 1:3
-            vertex = binarySTLvertex(file)
-            if topology
-                idx = findfirst(vts, vertex)
-            end
-            if topology && idx != 0
-                vert_idx[i] = idx
-            else
-                push!(vts, vertex)
-                vert_count += 1
-                vert_idx[i] = vert_count
-            end
-        end
-        skip(file, 2) # throwout 16bit attribute
-        push!(fcs, Face{Int}(vert_idx...))
-    end
-
-    return Mesh{Vertex, Face{Int}}(vts, fcs, topology)
+    return MeshType(vertices=vertices, faces=faces, normals=normals)
 end
 
-function importAsciiSTL(file::String; topology=false)
-    fn = open(file,"r")
-    mesh = importAsciiSTL(fn, topology=topology)
-    close(fn)
-    return mesh
-end
 
-function importAsciiSTL(file::IO; topology=false)
+
+function load(fs::Stream{format"STL_ASCII"}, MeshType=GLNormalMesh)
     #ASCII STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#ASCII_STL
+    io = stream(fs)
 
-    vts = Vertex[]
-    fcs = Face{Int}[]
+    FaceType    = facetype(MeshType)
+    VertexType  = vertextype(MeshType)
 
+    vs = VertexType[]
+    fs = FaceType[]
+
+    topology = false
     vert_count = 0
     vert_idx = [0,0,0]
-    while !eof(file)
-        line = split(lowercase(readline(file)))
+    while !eof(io)
+        line = split(lowercase(readline(io)))
         if !isempty(line) && line[1] == "facet"
-            normal = Vertex(float64(line[3:5])...)
-            readline(file) # Throw away outerloop
+            #normal = NormalType(line[3:5])
+            readline(io) # Throw away outerloop
             for i = 1:3
-                vertex = Vertex(float64(split(readline(file))[2:4])...)
+                vertex = VertexType(split(readline(io))[2:4])
                 if topology
-                    idx = findfirst(vts, vertex)
+                    idx = findfirst(vertices(mesh), vertex)
                 end
                 if topology && idx != 0
                     vert_idx[i] = idx
                 else
-                    push!(vts, vertex)
+                    push!(vs, vertex)
                     vert_count += 1
                     vert_idx[i] = vert_count
                 end
             end
-            readline(file) # throwout endloop
-            readline(file) # throwout endfacet
-            push!(fcs, Face{Int}(vert_idx...))
+            readline(io) # throwout endloop
+            readline(io) # throwout endfacet
+            push!(fs, Face{3, Int, 0}(vert_idx...))
         end
     end
 
-    return Mesh{Vertex, Face{Int}}(vts, fcs, topology)
+    return MeshType(vs, fs)
 end
