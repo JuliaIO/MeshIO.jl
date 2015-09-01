@@ -49,16 +49,6 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
     return mesh
 end
 
-# face indices are allowed to be negative, this methods handles this correctly
-function handle_index{T <: Integer}(bufferlength::Integer, s::AbstractString, index_type::Type{T})
-    i = parse(T, s)
-    i < 0 && return convert(T, bufferlength) + i + one(T) # account for negative indexes
-    return i
-end
-function push_index!{T}(buffer::Vector{T}, s::AbstractString)
-    push!(buffer, handle_index(length(buffer), s, eltype(T)))
-end
-
 immutable SplitFunctor <: Base.Func{1}
     seperator::ASCIIString
 end
