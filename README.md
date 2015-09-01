@@ -1,6 +1,6 @@
 # MeshIO
 
-[![Build Status](https://travis-ci.org/SimonDanisch/MeshIO.jl.svg?branch=master)](https://travis-ci.org/SimonDanisch/MeshIO.jl)
+[![Build Status](https://travis-ci.org/JuliaIO/MeshIO.jl.svg)](https://travis-ci.org/SimonDanisch/MeshIO.jl)
 
 
 WORK IN PROGRESS
