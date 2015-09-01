@@ -1,17 +1,11 @@
 import Base.writemime
 
 
-function FileIO.save(f::Union(File{format"PLY_ASCII"}, File{format"PLY_BINARY"}), msh::AbstractMesh)
-    fs = open(f)
-    save(fs, msh)
-    close(fs)
-end
-
-function FileIO.save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
+function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
     io      = stream(f)
-    vts     = Vector{Point{3, Float32}}(msh)
-    fcs     = Vector{Face{3, Float32, -1}}(msh)
-    normals = Vector{Normal{3, Float32}}(msh)
+    vts     = msh[Point{3, Float32}]
+    fcs     = msh[Face{3, Cuint, -1}]
+    normals = msh[Normal{3, Float32}]
 
     nV = length(vts)
     nF = length(fcs)
@@ -40,7 +34,7 @@ end
 writemime(io::IO, ::MIME"model/stl+ascii", msh::AbstractMesh) = save(io, msh)
 
 
-function FileIO.load(fs::Stream{format"STL_BINARY"}; MeshType=GLNormalMesh)
+function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     #Binary STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
@@ -72,42 +66,43 @@ end
 
 
 
-function FileIO.load(fs::Stream{format"STL_ASCII"}; MeshType=GLNormalMesh)
+function load(fs::Stream{format"STL_ASCII"}, MeshType=GLNormalMesh)
     #ASCII STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#ASCII_STL
     io = stream(fs)
 
-    FaceType    = facetype(typ)
-    VertexType  = vertextype(typ)
-    NormalType  = normaltype(typ)
+    FaceType    = facetype(MeshType)
+    VertexType  = vertextype(MeshType)
 
-    mesh = MeshType()
-    topology = true
+    vs = VertexType[]
+    fs = FaceType[]
+
+    topology = false
     vert_count = 0
     vert_idx = [0,0,0]
-    while !eof(file)
-        line = split(lowercase(readline(file)))
+    while !eof(io)
+        line = split(lowercase(readline(io)))
         if !isempty(line) && line[1] == "facet"
-            normal = NormalType(line[3:5])
-            readline(file) # Throw away outerloop
+            #normal = NormalType(line[3:5])
+            readline(io) # Throw away outerloop
             for i = 1:3
-                vertex = VertexType(split(readline(file))[2:4])
+                vertex = VertexType(split(readline(io))[2:4])
                 if topology
-                    idx = findfirst(vts, vertex)
+                    idx = findfirst(vertices(mesh), vertex)
                 end
                 if topology && idx != 0
                     vert_idx[i] = idx
                 else
-                    push!(vertices(mesh), vertex)
+                    push!(vs, vertex)
                     vert_count += 1
                     vert_idx[i] = vert_count
                 end
             end
-            readline(file) # throwout endloop
-            readline(file) # throwout endfacet
-            push!(faces(mesh), Face{3, Int, 0}(vert_idx...))
+            readline(io) # throwout endloop
+            readline(io) # throwout endfacet
+            push!(fs, Face{3, Int, 0}(vert_idx...))
         end
     end
 
-    return typ(vts, fcs, topology)
+    return MeshType(vs, fs)
 end

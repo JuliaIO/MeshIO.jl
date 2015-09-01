@@ -1,34 +1,35 @@
 
-function FileIO.save(str::Stream{format"OFF"}, msh::AbstractMesh)
+function save(str::Stream{format"OFF"}, msh::AbstractMesh)
     # writes an OFF geometry file, with colors
     #  see http://people.sc.fsu.edu/~jburkardt/data/off/off.html
     #  for format description
+    io = stream(str)
     vts = vertices(msh)
     fcs = faces(msh)
-    cs = colors(msh)
+
+    cs  = hascolors(msh) ? colors(msh) : RGBA{Float32}(0,0,0,1)
+
     nV = size(vts,1)
     nF = size(fcs,1)
-    nC = size(cs,1)
     nE = nF*3
 
     # write the header
-    write(str,"OFF\n")
-    write(str,"$nV $nF $nE\n")
-
+    println(io,"OFF")
+    println(io,"$nV $nF $nE")
     # write the data
     for v in vts
-        println(str, join(Vec{3, Float32}(v)))
+        println(io, join(Vec{3, Float32}(v), " "))
     end
     for i = 1:nF
         f = fcs[i]
-        c = cs[i]
+        c = isa(cs, Array) ? RGBA{Float32}(cs[i]) : cs
         facelen = length(f)
-        println(str, facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ", join(RGBA{Float32}(c), " "))
+        println(io, facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ", join(c, " "))
     end
-    close(str)
+    close(io)
 end
 
-function FileIO.load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
+function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
     io = stream(st)
     local vts
     FT = facetype(MeshType)
@@ -53,7 +54,7 @@ function FileIO.load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
             continue
         elseif found_counts # read faces
             splitted = split(txt)
-            facelen  = splice!(splitted)
+            facelen  = @compat parse(Int, shift!(splitted))
             f = Face{facelen, Cuint, -1}(splitted)
             push!(fcs, f)
             continue
@@ -65,6 +66,5 @@ function FileIO.load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
             found_counts = true
         end
     end
-    println(fcs)
     return MeshType(vts, fcs)
 end

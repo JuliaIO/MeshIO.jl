@@ -1,12 +1,11 @@
-function FileIO.save(f::File{format"PLY_BINARY"}, msh::AbstractMesh)
-
-    vts = msh[Point3{Float32}]
-    fcs = msh[Face3{Int32, -1}]
+function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
+    io = stream(f)
+    vts = msh[Point{3, Float32}]
+    fcs = msh[Face{3, Int32, -1}]
 
     nV = length(vts)
     nF = length(fcs)
 
-    io = open(fn, "w")
     # write the header
     write(io, "ply\n")
     write(io, "format binary_little_endian 1.0\n")
@@ -26,15 +25,14 @@ function FileIO.save(f::File{format"PLY_BINARY"}, msh::AbstractMesh)
     close(io)
 end
 
-function FileIO.save(f::File{format"PLY_ASCII"}, msh::AbstractMesh)
-
-    vts = msh[Point3{Float32}]
-    fcs = msh[Face3{Int32, -1}]
+function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
+    io = stream(f)
+    vts = vertices(msh)
+    fcs = faces(msh)
 
     nV = length(vts)
     nF = length(fcs)
 
-    io = open(fn, "w")
 
     # write the header
     write(io, "ply\n")
@@ -47,15 +45,15 @@ function FileIO.save(f::File{format"PLY_ASCII"}, msh::AbstractMesh)
 
     # write the vertices and faces
     for v in vts
-        println(io, join(v, " "))
+        println(io, join(Point{3, Float32}(v), " "))
     end
     for f in fcs
-        println(io, length(f), " ", join(f, " "))
+        println(io, length(f), " ", join(Face{3, Cuint, -1}(f), " "))
     end
     close(io)
 end
 
-function FileIO.load(fs::Stream{format"PLY_ASCII"}; MeshType=GLNormalMesh)
+function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     io = stream(fs)
     nV = 0
     nF = 0
