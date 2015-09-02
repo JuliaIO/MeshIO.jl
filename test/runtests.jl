@@ -50,6 +50,11 @@ facts("MeshIO") do
 			@fact length(faces(msh)) --> 828
 			@fact length(vertices(msh)) --> 2484
 			@fact length(normals(msh)) --> 2484
+
+			msh = load(joinpath(tf, "binary_stl_from_solidworks.STL"))
+			@fact typeof(msh) --> GLNormalMesh
+			@fact length(faces(msh)) --> 12
+			@fact length(vertices(msh)) --> 36
 		end
 		context("PLY") do
 			msh = load(joinpath(tf, "ascii.ply"))
