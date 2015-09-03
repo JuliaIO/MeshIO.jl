@@ -111,6 +111,13 @@ facts("MeshIO") do
 			@fact length(vertices(msh)) --> 8
 
 		end
+		context("2DM") do
+			msh = load(joinpath(tf, "test.2dm"))
+			@fact typeof(msh) --> GLNormalMesh
+			#@fact length(faces(msh)) --> 3954
+			#@fact length(vertices(msh)) --> 2248
+			#@fact length(normals(msh)) --> 2248
+		end
 	end
 end
 
