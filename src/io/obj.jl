@@ -32,7 +32,8 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
                 elseif any(x->contains(x, "//"), lines)
                     fs = process_face_normal(lines)
                 else
-                    return push!(faces(mesh), Triangle{Uint32}(lines))
+                    push!(faces(mesh), Triangle{Uint32}(lines))
+                    continue
                 end
                 push!(faces(mesh), Triangle{Uint32}(map(first, fs)))
             else
