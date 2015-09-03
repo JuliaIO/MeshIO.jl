@@ -13,9 +13,9 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
             if w[1] == "ND"
                 push!(vertices, Point{3, Float32}(w[3:end]))
             elseif w[1] == "E3T"
-                push!(faces, Triangle{Cuint}(w[3:end]))
+                push!(faces, Face{3, Cuint, 0}(w[3:5]))
             elseif w[1] == "E4Q"
-                push!(faces, Face{4, Cuint, 0}(w[3:end]))
+                push!(faces, triangulate(FT, Face{4, Cuint, 0}(w[3:6]))...)
             else
                 continue
             end
