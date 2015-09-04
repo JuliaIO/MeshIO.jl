@@ -55,8 +55,11 @@ function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
         elseif found_counts # read faces
             splitted = split(txt)
             facelen  = @compat parse(Int, shift!(splitted))
-            f = Face{facelen, Cuint, -1}(splitted)
-            push!(fcs, f)
+            if facelen == 3
+                push!(fcs, GLTriangle(splitted))
+            elseif facelen == 4
+                push!(fcs, triangulate(FT, Face{4, Cuint, -1}(splitted))...)
+            end
             continue
         elseif !found_counts && isdigit(split(txt)[1]) # vertex and face counts
             counts = Int[@compat parse(Int, s) for s in split(txt)]

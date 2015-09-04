@@ -125,11 +125,11 @@ end
 
 
 if false 
-	#using GLPlot, GLVisualize, GLAbstraction, FileIO
+	using GLPlot, GLVisualize, GLAbstraction, FileIO
 	tf = Pkg.dir("MeshIO", "test", "testfiles")
-	meshes = [visualize(load(joinpath(tf, name))) for elem in readdir(tf)]
-	meshes = convert(Matrix{RenderObject}, reshape(meshes, (7, 2)))
-	glplot(meshes)
+	meshes = [visualize(load(joinpath(tf, name))) for name in readdir(tf)];
+	meshes = convert(Matrix{RenderObject}, reshape(meshes, (7, 2)));
+	glplot(meshes);
 end
 #=
 

@@ -78,7 +78,8 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     FaceEltype  = eltype(FaceType)
 
     vts         = Array(VertexType, nV)
-    fcs         = Array(FaceType, nF)
+    #fcs         = Array(FaceType, nF)
+    fcs         = FaceType[]
 
     # read the data
     for i = 1:nV
@@ -88,7 +89,11 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     for i = 1:nF
         line    = split(readline(io))
         len     = parse(Int, shift!(line))
-        fcs[i]  = Face{len, FaceEltype, -1}(line) # line looks like: "3 0 1 2"
+        if len == 3
+            push!(fcs, Face{len, FaceEltype, -1}(line)) # line looks like: "3 0 1 3"
+        elseif len == 4
+            push!(fcs, triangulate(FaceType, Face{len, FaceEltype, -1}(line))...) # line looks like: "4 0 1 2 3"
+        end
     end
 
     return MeshType(vts, fcs)
