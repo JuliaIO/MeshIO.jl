@@ -23,4 +23,4 @@ build_script:
   - C:\projects\julia\bin\julia-debug -e "Pkg.clone(\"https://github.com/JuliaIO/MeshIO.jl.git\"); Pkg.checkout(\"FixedSizeArrays\")"
 
 test_script:
-  - C:\projects\julia\bin\julia-debug -e "Pkg.test(\"FileIO\")"
+  - C:\projects\julia\bin\julia-debug -e "Pkg.test(\"MeshIO\")"
