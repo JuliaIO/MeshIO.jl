@@ -78,12 +78,12 @@ facts("MeshIO") do
 			#println(msh)
 			msh = load(joinpath(tf, "cube.ply")) # quads
 			@fact length(vertices(msh)) --> 24
-			@fact length(faces(msh)) --> 6
+			@fact length(faces(msh)) --> 12
 		end
 		context("OFF") do
 			msh = load(joinpath(tf, "test.off"))
 			@fact typeof(msh) --> GLNormalMesh
-			@fact length(faces(msh)) --> 16
+			@fact length(faces(msh)) --> 28
 			@fact length(vertices(msh)) --> 20
 			@fact length(normals(msh)) --> 20
 
@@ -107,7 +107,7 @@ facts("MeshIO") do
 			@fact length(normals(msh)) --> 2248
 
 			msh = load(joinpath(tf, "cube.obj")) # quads
-			@fact length(faces(msh)) --> 6
+			@fact length(faces(msh)) --> 12
 			@fact length(vertices(msh)) --> 8
 
 		end
@@ -125,7 +125,7 @@ end
 
 
 if false 
-	using GLPlot, GLVisualize, GLAbstraction, FileIO
+	#using GLPlot, GLVisualize, GLAbstraction, FileIO
 	tf = Pkg.dir("MeshIO", "test", "testfiles")
 	meshes = [visualize(load(joinpath(tf, name))) for name in readdir(tf)];
 	meshes = convert(Matrix{RenderObject}, reshape(meshes, (7, 2)));
