@@ -19,8 +19,9 @@ build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
 #  - git fetch --unshallow
   - C:\projects\julia\bin\julia-debug -e "versioninfo(); Pkg.init()"
-  - C:\projects\julia\bin\julia-debug -e "Pkg.clone(\"https://github.com/JuliaIO/FileIO.jl.git\"); Pkg.checkout(\"FileIO\", \"sd/improvements\")"
-  - C:\projects\julia\bin\julia-debug -e "Pkg.clone(\"https://github.com/JuliaIO/MeshIO.jl.git\"); Pkg.checkout(\"FixedSizeArrays\")"
+  - C:\projects\julia\bin\julia-debug -e "Pkg.clone(\"https://github.com/JuliaIO/FileIO.jl.git\")"
+  - C:\projects\julia\bin\julia-debug -e "Pkg.clone(pwd(), \"MeshIO\")"
+  - C:\projects\julia\bin\julia-debug -e "Pkg.checkout(\"FixedSizeArrays\")"
 
 test_script:
   - C:\projects\julia\bin\julia-debug -e "Pkg.test(\"MeshIO\")"
