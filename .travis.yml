@@ -11,4 +11,5 @@ script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia -e 'Pkg.clone("https://github.com/JuliaIO/FileIO.jl.git"); Pkg.clone(pwd()); Pkg.checkout("FileIO", "sd/improvements"); Pkg.checkout("FixedSizeArrays")'
   - julia --check-bounds=yes -e 'Pkg.test("MeshIO"; coverage=true)'
+after_success:
   - julia -e 'cd(Pkg.dir("MeshIO")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(Coveralls.process_folder())'
