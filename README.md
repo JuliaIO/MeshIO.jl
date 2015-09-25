@@ -29,7 +29,7 @@ MeshType(Volume, 0.4f0) #0.4f0 => isovalue
 ```
 
 Similarly, I can pass a meshtype to an IO function, which then parses only the attributes that I really need.
-So passing `Mesh{Point3{Float32}, Face3{Uint32}}` to the obj importer will skip normals, uv coordinates etc, and automatically converts the given attributes to the right number type.
+So passing `Mesh{Point3{Float32}, Face3{UInt32}}` to the obj importer will skip normals, uv coordinates etc, and automatically converts the given attributes to the right number type.
 
 To put this one level furter, the Face type has the index offset relative to julia's indexing as a parameter (e.g. Face3{T, 0} is 1 indexed}). Also, you can index into an array with this face type, and it will convert the indexes correctly while accessing the array. So something like this always works, independant of the underlying index offset:
 ```Julia

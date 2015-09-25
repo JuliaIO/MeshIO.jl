@@ -40,7 +40,7 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     io = stream(fs)
     readbytes(io, 80) # throw out header
 
-    triangle_count = read(io, Uint32)
+    triangle_count = read(io, UInt32)
     FaceType    = facetype(MeshType)
     VertexType  = vertextype(MeshType)
     NormalType  = normaltype(MeshType)
