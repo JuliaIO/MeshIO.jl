@@ -1,6 +1,7 @@
 # MeshIO
 
-[![Build Status](https://travis-ci.org/JuliaIO/MeshIO.jl.svg)](https://travis-ci.org/SimonDanisch/MeshIO.jl)
+[![Build Status](https://travis-ci.org/JuliaIO/MeshIO.jl.svg)](https://travis-ci.org/JuliaIO/MeshIO.jl)
+[![Build status](https://ci.appveyor.com/api/projects/status/db53fjnhbp1m0bk8/branch/master?svg=true)](https://ci.appveyor.com/project/SimonDanisch/meshio-jl/branch/master)
 [![codecov.io](http://codecov.io/github/JuliaIO/MeshIO.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaIO/MeshIO.jl?branch=master)
 [![Coverage Status](https://coveralls.io/repos/JuliaIO/MeshIO.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaIO/MeshIO.jl?branch=master)
 
