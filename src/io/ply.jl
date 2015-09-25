@@ -19,7 +19,7 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     write(io, vts)
 
     for f in fcs
-        write(io, convert(Uint8, 3))
+        write(io, convert(UInt8, 3))
         write(io, f...)
     end
     close(io)
@@ -58,7 +58,7 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     nV = 0
     nF = 0
 
-    properties = String[]
+    properties = ASCIIString[]
 
     # read the header
     line = readline(io)
