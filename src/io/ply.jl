@@ -92,7 +92,7 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
         if len == 3
             push!(fcs, Face{len, FaceEltype, -1}(line)) # line looks like: "3 0 1 3"
         elseif len == 4
-            push!(fcs, triangulate(FaceType, Face{len, FaceEltype, -1}(line))...) # line looks like: "4 0 1 2 3"
+            push!(fcs, decompose(FaceType, Face{len, FaceEltype, -1}(line))...) # line looks like: "4 0 1 2 3"
         end
     end
 
