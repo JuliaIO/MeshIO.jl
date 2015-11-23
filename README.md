@@ -5,10 +5,19 @@
 [![codecov.io](http://codecov.io/github/JuliaIO/MeshIO.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaIO/MeshIO.jl?branch=master)
 [![Coverage Status](https://coveralls.io/repos/JuliaIO/MeshIO.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/JuliaIO/MeshIO.jl?branch=master)
 
-WORK IN PROGRESS
-Starting to take the mesh definitions and IO operations from Meshes.jl and Meshes2.jl.
+This package supports loading of the following formats: `obj`, `stl`, `ply`, `off` and `2DM`
+More will come.
+Loading works over the [FileIO](https://github.com/JuliaIO/FileIO.jl) interface.
+This means loading a mesh is as simple as this:
+```Julia
+using FileIO
+mesh = load("path/to/mesh.obj")
+```
+Displaying a mesh can be achieved with [GLVisualize](https://github.com/JuliaGL/GLVisualize.jl), [GLPlot](https://github.com/SimonDanisch/GLPlot.jl) and [ThreeJS](https://github.com/rohitvarkey/ThreeJS.jl/).
 
-### Update:
+Functions for mesh manipulation can be found in [Meshes](https://github.com/JuliaGeometry/Meshes.jl) and [JuliaGeometry](https://github.com/JuliaGeometry)
+
+### Some Infos
 
 MeshIO now has the HomogenousMesh type. Name is still not settled, but it's supposed to be a dense mesh with all attributes either having the length of one (constant over the whole mesh) or the same length (per vertex).
 This meshtype holds a large variability for all the different attribute mixtures that I've encountered while trying to visualize things over at GLVisualize. This is the best type I've found so far to encode this large variability, without an explosion of functions.
