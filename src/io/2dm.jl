@@ -15,7 +15,7 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
             elseif w[1] == "E3T"
                 push!(faces, Face{3, Cuint, 0}(w[3:5]))
             elseif w[1] == "E4Q"
-                push!(faces, triangulate(FT, Face{4, Cuint, 0}(w[3:6]))...)
+                push!(faces, decompose(FT, Face{4, Cuint, 0}(w[3:6]))...)
             else
                 continue
             end

@@ -35,7 +35,7 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
                     if length(lines) == 3
                         push!(faces(mesh), Triangle{UInt32}(lines))
                     elseif length(lines) == 4
-                        push!(faces(mesh), triangulate(eltype(faces(mesh)), Face{4, UInt32, 0}(lines))...)
+                        push!(faces(mesh), decompose(eltype(faces(mesh)), Face{4, UInt32, 0}(lines))...)
                     end
                     continue
                 end
