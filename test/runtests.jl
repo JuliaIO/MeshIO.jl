@@ -30,8 +30,8 @@ facts("MeshIO") do
 			save(File(format"STL_ASCII", joinpath(tmpdir, "test.stl")), mesh)
 			mesh_loaded = GLPlainMesh(joinpath(tmpdir, "test.stl"))
 			#@fact mesh_loaded --> mesh
-			#save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), mesh)
-			#mesh_loaded = GLPlainMesh(joinpath(tmpdir, "test.stl"))
+			save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), mesh)
+			mesh_loaded = GLNormalMesh(joinpath(tmpdir, "test.stl"))
 			#@fact mesh_loaded --> mesh
 		end
 	end
@@ -50,6 +50,15 @@ facts("MeshIO") do
 			@fact length(vertices(msh)) --> 2484
 			@fact length(normals(msh)) --> 2484
 
+            mktempdir() do tmpdir
+                save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), msh)
+                msh1 = load(joinpath(tmpdir, "test.stl"))
+                @fact typeof(msh1) --> GLNormalMesh
+                @fact faces(msh) --> faces(msh1)
+                @fact vertices(msh) --> vertices(msh1)
+                @fact normals(msh) --> normals(msh1)
+            end
+            
 			msh = load(joinpath(tf, "binary_stl_from_solidworks.STL"))
 			@fact typeof(msh) --> GLNormalMesh
 			@fact length(faces(msh)) --> 12
