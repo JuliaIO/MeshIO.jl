@@ -1,15 +1,14 @@
 using FileIO, FactCheck, GeometryTypes
 
-typealias Vec3 Vec{3, Float32}
 const tf = joinpath(dirname(@__FILE__), "testfiles")
 
-facts("MeshIO") do 
+facts("MeshIO") do
 	dirlen 	= 1f0
 	baselen = 0.02f0
 	mesh 	= [
-		Cube{Float32}(Vec3(baselen), Vec3(dirlen, baselen, baselen)), 
-		Cube{Float32}(Vec3(baselen), Vec3(baselen, dirlen, baselen)), 
-		Cube{Float32}(Vec3(baselen), Vec3(baselen, baselen, dirlen))
+		AABB{Float32}(Vec3f0(baselen), Vec3f0(dirlen, baselen, baselen)),
+		AABB{Float32}(Vec3f0(baselen), Vec3f0(baselen, dirlen, baselen)),
+		AABB{Float32}(Vec3f0(baselen), Vec3f0(baselen, baselen, dirlen))
 	]
 	mesh = merge(map(GLPlainMesh, mesh))
 	mktempdir() do tmpdir
@@ -36,8 +35,8 @@ facts("MeshIO") do
 			#@fact mesh_loaded --> mesh
 		end
 	end
-	context("Real world files") do 
-		
+	context("Real world files") do
+
 		context("STL") do
 			msh = load(joinpath(tf, "ascii.stl"))
 			@fact typeof(msh) --> GLNormalMesh
@@ -124,7 +123,7 @@ end
 
 
 
-if false 
+if false
 	#using GLPlot, GLVisualize, GLAbstraction, FileIO
 	tf = Pkg.dir("MeshIO", "test", "testfiles")
 	meshes = [visualize(load(joinpath(tf, name))) for name in readdir(tf)];
@@ -145,5 +144,3 @@ amf1 = mesh(data_path*"pyramid_zip.amf")
 @test length(amf1[2].vertices) == 5
 @test length(amf1[2].faces) == 4
 =#
-
-
