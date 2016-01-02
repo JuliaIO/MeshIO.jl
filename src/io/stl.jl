@@ -15,7 +15,7 @@ function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
     # write the data
     for i = 1:nF
         f = fcs[i]
-        n = normals[i] # TODO: properly compute normal(f)
+        n = normals[f][1] # TODO: properly compute normal(f)
         v1, v2, v3 = vts[f]
         @printf io "  facet normal %e %e %e\n" n[1] n[2] n[3]
         write(io,"    outer loop\n")
@@ -80,8 +80,8 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     while !eof(io)
         faces[i+1]      = Face{3, Int, -1}(i*3, i*3+1, i*3+2)
         normals[i*3+1]  = NormalType(read(io, Float32), read(io, Float32), read(io, Float32))
-        normals[i*3+2]  = normals[i*3+2] # hurts, but we need per vertex normals
-        normals[i*3+3]  = normals[i*3+2]
+        normals[i*3+2]  = normals[i*3+1] # hurts, but we need per vertex normals
+        normals[i*3+3]  = normals[i*3+1]
         vertices[i*3+1] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
         vertices[i*3+2] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
         vertices[i*3+3] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
