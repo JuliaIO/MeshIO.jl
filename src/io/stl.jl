@@ -3,9 +3,9 @@ import Base.writemime
 
 function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
     io      = stream(f)
-    vts     = msh[Point{3, Float32}]
-    fcs     = msh[Face{3, Cuint, -1}]
-    normals = msh[Normal{3, Float32}]
+    vts     = decompose(Point{3, Float32}, msh)
+    fcs     = decompose(Face{3, Cuint, -1}, msh)
+    normals = decompose(Normal{3, Float32}, msh)
 
     nV = length(vts)
     nF = length(fcs)
@@ -71,21 +71,21 @@ function load(fs::Stream{format"STL_ASCII"}, MeshType=GLNormalMesh)
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#ASCII_STL
     io = stream(fs)
 
-    FaceType    = facetype(MeshType)
-    VertexType  = vertextype(MeshType)
+    FaceType   = facetype(MeshType)
+    VertexType = vertextype(MeshType)
+    vs         = VertexType[]
+    fs         = FaceType[]
 
-    vs = VertexType[]
-    fs = FaceType[]
-
-    topology = false
+    topology   = false
     vert_count = 0
-    vert_idx = [0,0,0]
+    vert_idx   = [0,0,0]
+
     while !eof(io)
         line = split(lowercase(readline(io)))
         if !isempty(line) && line[1] == "facet"
             #normal = NormalType(line[3:5])
             readline(io) # Throw away outerloop
-            for i = 1:3
+            for i=1:3
                 vertex = VertexType(split(readline(io))[2:4])
                 if topology
                     idx = findfirst(vertices(mesh), vertex)
@@ -103,6 +103,5 @@ function load(fs::Stream{format"STL_ASCII"}, MeshType=GLNormalMesh)
             push!(fs, Face{3, Int, 0}(vert_idx...))
         end
     end
-
     return MeshType(vs, fs)
 end

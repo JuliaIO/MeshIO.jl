@@ -1,7 +1,7 @@
 function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     io = stream(f)
-    vts = msh[Point{3, Float32}]
-    fcs = msh[Face{3, Int32, -1}]
+    vts = decompose(Point{3, Float32}, msh)
+    fcs = decompose(Face{3, Int32, -1}, msh)
 
     nV = length(vts)
     nF = length(fcs)
@@ -98,4 +98,3 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
 
     return MeshType(vts, fcs)
 end
-
