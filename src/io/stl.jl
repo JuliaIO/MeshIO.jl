@@ -15,7 +15,7 @@ function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
     # write the data
     for i = 1:nF
         f = fcs[i]
-        n = normals[i] # TODO: properly compute normal(f)
+        n = normals[f][1] # TODO: properly compute normal(f)
         v1, v2, v3 = vts[f]
         @printf io "  facet normal %e %e %e\n" n[1] n[2] n[3]
         write(io,"    outer loop\n")
@@ -32,6 +32,34 @@ end
 
 
 writemime(io::IO, ::MIME"model/stl+ascii", msh::AbstractMesh) = save(io, msh)
+
+
+function save(f::Stream{format"STL_BINARY"}, msh::AbstractMesh)
+    io      = stream(f)
+    vts     = msh[Point{3, Float32}]
+    fcs     = msh[Face{3, Cuint, -1}]
+    normals = msh[Normal{3, Float32}]
+    nF = length(fcs)
+    # Implementation made according to https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
+    for i in 1:80 # write empty header
+        write(io,0x00)
+    end
+
+    write(io, UInt32(nF)) # write triangle count
+    for i = 1:nF
+        f = fcs[i]
+        n = normals[f][1] # TODO: properly compute normal(f)
+        v1, v2, v3 = vts[f]
+        for j=1:3; write(io, n[j]); end # write normal
+        
+        for v in [v1, v2, v3]
+            for j = 1:3
+                write(io, v[j]) # write vertex coordinates
+            end
+        end
+        write(io,0x0000) # write 16bit empty bit
+    end
+end
 
 
 function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
@@ -52,8 +80,8 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     while !eof(io)
         faces[i+1]      = Face{3, Int, -1}(i*3, i*3+1, i*3+2)
         normals[i*3+1]  = NormalType(read(io, Float32), read(io, Float32), read(io, Float32))
-        normals[i*3+2]  = normals[i*3+2] # hurts, but we need per vertex normals
-        normals[i*3+3]  = normals[i*3+2]
+        normals[i*3+2]  = normals[i*3+1] # hurts, but we need per vertex normals
+        normals[i*3+3]  = normals[i*3+1]
         vertices[i*3+1] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
         vertices[i*3+2] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
         vertices[i*3+3] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
