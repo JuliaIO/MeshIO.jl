@@ -1,11 +1,11 @@
 import Base.writemime
 
 
-function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
+function save(f::Stream{format"STL_ASCII"}, mesh::AbstractMesh)
     io      = stream(f)
-    vts     = decompose(Point{3, Float32}, msh)
-    fcs     = decompose(Face{3, Cuint, -1}, msh)
-    normals = decompose(Normal{3, Float32}, msh)
+    vts     = decompose(Point{3, Float32}, mesh)
+    fcs     = decompose(Face{3, Cuint, -1}, mesh)
+    normals = decompose(Normal{3, Float32}, mesh)
 
     nV = length(vts)
     nF = length(fcs)
@@ -31,14 +31,14 @@ function save(f::Stream{format"STL_ASCII"}, msh::AbstractMesh)
 end
 
 
-writemime(io::IO, ::MIME"model/stl+ascii", msh::AbstractMesh) = save(io, msh)
+writemime(io::IO, ::MIME"model/stl+ascii", mesh::AbstractMesh) = save(io, mesh)
 
 
-function save(f::Stream{format"STL_BINARY"}, msh::AbstractMesh)
+function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
     io      = stream(f)
-    vts     = msh[Point{3, Float32}]
-    fcs     = msh[Face{3, Cuint, -1}]
-    normals = msh[Normal{3, Float32}]
+    vts     = decompose(Point{3, Float32}, mesh)
+    fcs     = decompose(Face{3, Cuint, -1}, mesh)
+    normals = decompose(Normal{3, Float32}, mesh)
     nF = length(fcs)
     # Implementation made according to https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     for i in 1:80 # write empty header
