@@ -58,7 +58,7 @@ facts("MeshIO") do
                 @fact vertices(msh) --> vertices(msh1)
                 @fact normals(msh) --> normals(msh1)
             end
-            
+
 			msh = load(joinpath(tf, "binary_stl_from_solidworks.STL"))
 			@fact typeof(msh) --> GLNormalMesh
 			@fact length(faces(msh)) --> 12

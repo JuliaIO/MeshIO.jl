@@ -28,6 +28,7 @@ function save(f::Stream{format"STL_ASCII"}, mesh::AbstractMesh)
         write(io,"  endfacet\n")
     end
     write(io,"endsolid vcg\n")
+    nothing
 end
 
 
@@ -51,7 +52,7 @@ function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
         n = normals[f][1] # TODO: properly compute normal(f)
         v1, v2, v3 = vts[f]
         for j=1:3; write(io, n[j]); end # write normal
-        
+
         for v in [v1, v2, v3]
             for j = 1:3
                 write(io, v[j]) # write vertex coordinates
@@ -59,6 +60,7 @@ function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
         end
         write(io,0x0000) # write 16bit empty bit
     end
+    nothing
 end
 
 
