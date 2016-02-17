@@ -7,7 +7,8 @@
 function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GLNormalMesh)
     io           = stream(io)
     lineNumber   = 1
-    mesh         = MeshType()
+    Tv,Tn,Tuv,Tf = vertextype(MT), normaltype(MT), texturecoordinatetype(MT), facetype(MT)
+    v,n,uv,f     = Tv[], Tn[], Tuv[], Tf[]
     last_command = ""
     attrib_type  = nothing
     for line in eachline(io)
@@ -20,12 +21,12 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
             command = shift!(lines) #first is the command, rest the data
 
             if "v" == command # mesh always has vertices
-                push!(vertices(mesh), Point{3, Float32}(lines)) # should automatically convert to the right type in vertices(mesh)
-            elseif "vn" == command && hasnormals(mesh)
-                push!(normals(mesh), Normal{3, Float32}(lines))
-            elseif "vt" == command && hastexturecoordinates(mesh)
+                push!(v, Point{3, Float32}(lines)) # should automatically convert to the right type in vertices(mesh)
+            elseif "vn" == command && hasnormals(MT)
+                push!(n, Normal{3, Float32}(lines))
+            elseif "vt" == command && hastexturecoordinates(MT)
                 length(lines) == 2 && push!(lines, "0.0") # length can be two, but obj normaly does three coordinates with the third equals 0.
-                push!(texturecoordinates(mesh), UVW{Float32}(lines))
+                push!(uv, UVW{Float32}(lines))
             elseif "f" == command #mesh always has faces
                 if any(x->contains(x, "/"), lines)
                     fs = process_face_uv_or_normal(lines)
@@ -33,13 +34,13 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
                     fs = process_face_normal(lines)
                 else
                     if length(lines) == 3
-                        push!(faces(mesh), Triangle{UInt32}(lines))
+                        push!(f, Triangle{UInt32}(lines))
                     elseif length(lines) == 4
-                        push!(faces(mesh), decompose(eltype(faces(mesh)), Face{4, UInt32, 0}(lines))...)
+                        push!(f, decompose(Tf, Face{4, UInt32, 0}(lines))...)
                     end
                     continue
                 end
-                push!(faces(mesh), Triangle{UInt32}(map(first, fs)))
+                push!(f, Triangle{UInt32}(map(first, fs)))
             else
                 #TODO
             end
@@ -47,11 +48,19 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
         # read next line
         lineNumber += 1
     end
-    if isempty(mesh.normals) || length(mesh.normals) != length(mesh.vertices) # silly way of dealing with normals that are not per vertex.
-        empty!(mesh.normals)
-        append!(mesh.normals, normals(mesh.vertices, mesh.faces))
+    attributes = Dict{Symbol, Any}()
+    !isempty(f) && (attributes[:faces] = f)
+    !isempty(v) && (attributes[:vertices] = v)
+    if !isempty(n)
+        if length(v) != length(n) # these are not per vertex normals, which we
+            # can't deal with at the moment
+            n = normals(v, f, Tn)
+        end
+        attributes[:normals] = n
     end
-    return mesh
+    !isempty(uv) && (attributes[:texturecoordinates] = uv)
+
+    return MT(HomogenousMesh(attributes))
 end
 
 immutable SplitFunctor <: Base.Func{1}
@@ -65,4 +74,3 @@ process_face{S <: AbstractString}(lines::Vector{S}) = (lines,) # just put it in 
 process_face_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunctor("//"), lines)
 # of form "f v1/vt1 v2/vt2 v3/vt3 ..." or of form "f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...."
 process_face_uv_or_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunctor("/"), lines)
-
