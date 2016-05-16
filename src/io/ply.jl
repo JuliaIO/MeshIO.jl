@@ -58,7 +58,7 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     nV = 0
     nF = 0
 
-    properties = ASCIIString[]
+    properties = Compat.UTF8String[]
 
     # read the header
     line = readline(io)
