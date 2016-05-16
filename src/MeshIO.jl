@@ -7,7 +7,7 @@ using Compat
 import FileIO
 
 import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagic
-import Base: writemime, call
+import Base: writemime
 
 
 
@@ -24,7 +24,5 @@ end
 save{format}(fn::File{format}, msh::AbstractMesh) = open(fn, "w") do s
 	save(s, msh)
 end
-
-call{M <: AbstractMesh}(m::Type{M}, f::AbstractString) = FileIO.load(f, m)
 
 end # module
