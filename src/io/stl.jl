@@ -51,7 +51,7 @@ function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
         n = normals[f][1] # TODO: properly compute normal(f)
         v1, v2, v3 = vts[f]
         for j=1:3; write(io, n[j]); end # write normal
-        
+
         for v in [v1, v2, v3]
             for j = 1:3
                 write(io, v[j]) # write vertex coordinates
@@ -66,7 +66,7 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     #Binary STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
-    readbytes(io, 80) # throw out header
+    read(io, 80) # throw out header
 
     triangle_count = read(io, UInt32)
     FaceType    = facetype(MeshType)

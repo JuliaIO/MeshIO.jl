@@ -63,8 +63,9 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
     return MT(HomogenousMesh(attributes))
 end
 
-immutable SplitFunctor <: Base.Func{1}
-    seperator::ASCIIString
+
+immutable SplitFunctor
+    seperator::Compat.UTF8String
 end
 call(s::SplitFunctor, array) = split(array, s.seperator)
 
