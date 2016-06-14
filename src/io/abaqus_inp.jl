@@ -54,9 +54,9 @@ function load(fn::File{format"ABAQUS_INP"})
                 topology_vec = Int[]
                 n_elements = 0
                 while !iskeyword(peek_line(f))
-                    n_elements += 1
                     l = strip(eat_line(f))
                     l == "" && continue
+                    n_elements += 1
                     l_split = split(l, [','])
                     ele_data = [parse(Int, x) for x in l_split]
                     push!(element_numbers, ele_data[1])
