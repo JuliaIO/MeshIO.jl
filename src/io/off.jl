@@ -23,8 +23,8 @@ function save(str::Stream{format"OFF"}, msh::AbstractMesh)
         f = fcs[i]
         c = isa(cs, Array) ? RGBA{Float32}(cs[i]) : cs
         facelen = length(f)
-        println(io,
-            facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ",
+        println(io, 
+            facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ", 
             join((red(c), green(c), blue(c), alpha(c)), " ")
         )
     end
