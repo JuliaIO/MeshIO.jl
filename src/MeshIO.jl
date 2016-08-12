@@ -7,7 +7,7 @@ using Compat
 import FileIO
 
 import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagic
-import Base: writemime
+import Base: show
 
 
 
