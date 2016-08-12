@@ -1,4 +1,3 @@
-
 function save(str::Stream{format"OFF"}, msh::AbstractMesh)
     # writes an OFF geometry file, with colors
     #  see http://people.sc.fsu.edu/~jburkardt/data/off/off.html
@@ -24,8 +23,8 @@ function save(str::Stream{format"OFF"}, msh::AbstractMesh)
         f = fcs[i]
         c = isa(cs, Array) ? RGBA{Float32}(cs[i]) : cs
         facelen = length(f)
-        println(io, 
-            facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ", 
+        println(io,
+            facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ",
             join((red(c), green(c), blue(c), alpha(c)), " ")
         )
     end

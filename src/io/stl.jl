@@ -1,6 +1,3 @@
-import Base.writemime
-
-
 function save(f::Stream{format"STL_ASCII"}, mesh::AbstractMesh)
     io      = stream(f)
     vts     = decompose(Point{3, Float32}, mesh)
@@ -31,7 +28,7 @@ function save(f::Stream{format"STL_ASCII"}, mesh::AbstractMesh)
 end
 
 
-writemime(io::IO, ::MIME"model/stl+ascii", mesh::AbstractMesh) = save(io, mesh)
+@compat show(io::IO, ::MIME"model/stl+ascii", mesh::AbstractMesh) = save(io, mesh)
 
 
 function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
