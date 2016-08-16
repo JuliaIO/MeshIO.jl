@@ -33,14 +33,10 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
                 elseif any(x->contains(x, "//"), lines)
                     fs = process_face_normal(lines)
                 else
-                    if length(lines) == 3
-                        push!(f, Triangle{UInt32}(lines))
-                    elseif length(lines) == 4
-                        push!(f, decompose(Tf, Face{4, UInt32, 0}(lines))...)
-                    end
+                    push!(f, triangulated_faces(Tf, lines)...)
                     continue
                 end
-                push!(f, Triangle{UInt32}(map(first, fs)))
+                push!(f, triangulated_faces(Tf, map(first, fs))...)
             else
                 #TODO
             end
@@ -75,3 +71,13 @@ process_face{S <: AbstractString}(lines::Vector{S}) = (lines,) # just put it in 
 process_face_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunctor("//"), lines)
 # of form "f v1/vt1 v2/vt2 v3/vt3 ..." or of form "f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...."
 process_face_uv_or_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunctor("/"), lines)
+
+immutable ParseFunctor{T}
+    T::Type{T}
+end
+call{T}(::ParseFunctor{T}, x) = parse(T, x)
+
+function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{SubString{ASCIIString}})
+    poly_face = Face{length(vertex_indices), UInt32, 0}(map(ParseFunctor(UInt32), vertex_indices))
+    decompose(Tf, poly_face)
+end

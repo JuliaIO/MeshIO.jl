@@ -118,6 +118,10 @@ facts("MeshIO") do
             @fact length(faces(msh)) --> 12
             @fact length(vertices(msh)) --> 8
 
+            msh = load(joinpath(tf, "polygonal_face.obj"))
+            @fact length(faces(msh)) --> 4
+            @fact length(vertices(msh)) --> 6
+
         end
         context("2DM") do
             msh = load(joinpath(tf, "test.2dm"))

@@ -1,0 +1,9 @@
+# This mesh contains a single face with 6 vertices, which we can use to verify
+# automatic triangulation of polygonal faces.
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 1.5 0.5 0.0
+v 1.0 1.0 0.0
+v 0.5 1.5 0.0
+v 0.0 1.0 0.0
+f 1 2 3 4 5 6
