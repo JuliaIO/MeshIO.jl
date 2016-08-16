@@ -1,4 +1,3 @@
-
 function save(str::Stream{format"OFF"}, msh::AbstractMesh)
     # writes an OFF geometry file, with colors
     #  see http://people.sc.fsu.edu/~jburkardt/data/off/off.html

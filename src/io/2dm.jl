@@ -1,4 +1,3 @@
-
 # | Read a .2dm (SMS Aquaveo) mesh-file and construct a @Mesh@
 function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
     FT       = facetype(MeshType)
@@ -44,4 +43,4 @@ function save(st::Stream{format"2DM"}, m::AbstractMesh)
     nothing
 end
 
-Base.writemime(io::IO, ::MIME"model/2dm", mesh::AbstractMesh) = save(io, mesh)
+@compat show(io::IO, ::MIME"model/2dm", mesh::AbstractMesh) = save(io, mesh)

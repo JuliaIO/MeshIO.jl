@@ -63,7 +63,7 @@ end
 immutable SplitFunctor
     seperator::Compat.UTF8String
 end
-call(s::SplitFunctor, array) = split(array, s.seperator)
+@compat (s::SplitFunctor)(array) = split(array, s.seperator)
 
 # of form "f v1 v2 v3 ....""
 process_face{S <: AbstractString}(lines::Vector{S}) = (lines,) # just put it in the same format as the others
