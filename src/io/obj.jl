@@ -75,9 +75,9 @@ process_face_uv_or_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunc
 immutable ParseFunctor{T}
     T::Type{T}
 end
-call{T}(::ParseFunctor{T}, x) = parse(T, x)
+@compat (::ParseFunctor{T}){T}(x) = parse(T, x)
 
-function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{SubString{ASCIIString}})
+function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{SubString{Compat.ASCIIString}})
     poly_face = Face{length(vertex_indices), UInt32, 0}(map(ParseFunctor(UInt32), vertex_indices))
     decompose(Tf, poly_face)
 end
