@@ -8,6 +8,13 @@ environment:
 branches:
   only:
     - master
+    - /release-.*/
+
+notifications:
+  - provider: Email
+    on_build_success: false
+    on_build_failure: false
+    on_build_status_changed: false
 
 install:
 # Download most recent Julia Windows binary
@@ -19,12 +26,9 @@ install:
 
 build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
-#  - git fetch --unshallow
-  - C:\projects\julia\bin\julia-debug -e "versioninfo(); Pkg.init()"
-  - C:\projects\julia\bin\julia-debug -e "Pkg.clone(\"https://github.com/JuliaIO/FileIO.jl.git\")"
-  - C:\projects\julia\bin\julia-debug -e "Pkg.clone(pwd(), \"MeshIO\")"
-  - C:\projects\julia\bin\julia-debug -e "Pkg.checkout(\"FixedSizeArrays\")"
-  - C:\projects\julia\bin\julia-debug -e "Pkg.checkout(\"GeometryTypes\")"
+  - IF EXIST .git\shallow (git fetch --unshallow)
+  - C:\projects\julia\bin\julia -e "versioninfo();
+      Pkg.clone(pwd(), \"MeshIO\"); Pkg.build(\"MeshIO\")"
 
 test_script:
-  - C:\projects\julia\bin\julia-debug -e "Pkg.test(\"MeshIO\")"
+  - C:\projects\julia\bin\julia -e "Pkg.test(\"MeshIO\")"
