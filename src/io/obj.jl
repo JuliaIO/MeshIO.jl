@@ -14,7 +14,7 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
     for line in eachline(io)
         # read a line, remove newline and leading/trailing whitespaces
         line = strip(chomp(line))
-        !isvalid(line) && error("non valid ascii in obj")
+        !isvalid(String, line) && error("non valid ascii in obj")
 
         if !startswith(line, "#") && !isempty(line) && !iscntrl(line) #ignore comments
             lines   = split(line)
