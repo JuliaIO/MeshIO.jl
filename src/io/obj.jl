@@ -11,6 +11,7 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
     v,n,uv,f     = Tv[], Tn[], Tuv[], Tf[]
     last_command = ""
     attrib_type  = nothing
+    numprint = 1
     for line in eachline(io)
         # read a line, remove newline and leading/trailing whitespaces
         line = strip(chomp(line))
@@ -37,10 +38,19 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
                         push!(f, Triangle{UInt32}(lines))
                     elseif length(lines) == 4
                         push!(f, decompose(Tf, Face{4, UInt32, 0}(lines))...)
+                    else
+                        warn("$lines couldn't be processed")
                     end
                     continue
                 end
-                push!(f, Triangle{UInt32}(map(first, fs)))
+                x = map(first, fs)
+                if length(x) == 3
+                    push!(f, Triangle{UInt32}(x))
+                elseif length(x) == 4
+                    push!(f, decompose(Tf, Face{4, UInt32, 0}(x))...)
+                else
+                    warn("$lines couldn't be processed")
+                end
             else
                 #TODO
             end
