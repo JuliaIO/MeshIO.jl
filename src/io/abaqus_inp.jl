@@ -1,17 +1,17 @@
 # Represents a set of abaqus elements of the same type
-immutable AbaqusElements
+type AbaqusElements
     numbers::Vector{Int}
     topology::Matrix{Int}
 end
 
 # Represents the nodes in the mesh
-immutable AbaqusNodes
+type AbaqusNodes
     numbers::Vector{Int}
     coordinates::Matrix{Float64}
 end
 
 # Represents the mesh
-immutable AbaqusMesh
+type AbaqusMesh
     nodes::AbaqusNodes
     elements::Dict{String, AbaqusElements}
     node_sets::Dict{String, Vector{Int}}
@@ -20,6 +20,69 @@ end
 
 
 iskeyword(l) = startswith(l, "*")
+
+function get_string_block(f)
+    data = split(readuntil(f, '*'), "\n")
+    if data[end] == "*"
+        deleteat!(data, length(data)) # Remove last *
+        seek(f, position(f) - 1)
+    end
+
+    return data
+end
+
+function read_nodes!(f, node_numbers::Vector{Int}, coord_vec::Vector{Float64})
+    node_data = get_string_block(f)
+    for nodeline in node_data
+        node = split(nodeline, ',', keep = false)
+        length(node) == 1 && continue
+        n = parse(Int, node[1])
+        x = parse(Float64, node[2])
+        y = parse(Float64, node[3])
+        z = length(node) == 4 ? parse(Float64, node[4]) : 0.0
+        push!(node_numbers, n)
+        append!(coord_vec, (x, y, z))
+    end
+end
+
+function read_elements!(f, elements, element_type::AbstractString, element_set="", element_sets=nothing)
+    element_numbers = Int[]
+    topology_vec = Int[]
+    element_data = get_string_block(f)
+    for elementline in element_data
+        element = split(elementline, ',', keep = false)
+        length(element) == 0 && continue
+        n = parse(Int, element[1])
+        push!(element_numbers, n)
+        vertices = [parse(Int, element[i]) for i in 2:length(element)]
+        append!(topology_vec, vertices)
+    end
+    n_elements = length(element_numbers)
+    elements[element_type] = AbaqusElements(element_numbers,
+        reshape(topology_vec, length(topology_vec) ÷ n_elements, n_elements))
+    if element_set != ""
+        element_sets[element_set] = copy(element_numbers)
+    end
+end
+
+function read_set!(f, sets, setname::AbstractString)
+    if endswith(setname, "generate")
+        lsplit = split(strip(eat_line(f)), ',', keep = false)
+        start, stop, step = [parse(Int, x) for x in lsplit]
+        indices = collect(start:step:stop)
+        setname = split(set_name, [','])[1]
+    else
+        data = get_string_block(f)
+        indices = Int[]
+        for line in data
+            indices_str = split(line, ',', keep = false)
+            for v in indices_str
+                push!(indices, parse(Int, v))
+            end
+        end
+    end
+    sets[setname] = indices
+end
 
 function load(fn::File{format"ABAQUS_INP"})
     open(fn) do s
@@ -39,69 +102,17 @@ function load(fn::File{format"ABAQUS_INP"})
             if ((m = match(r"\*Part, name=(.*)", header)) != nothing)
 
             elseif ((m = match(r"\*Node", header)) != nothing)
-                while !iskeyword(peek_line(f))
-                    l = strip(eat_line(f))
-                    l == "" && continue
-                    lsplit = split(l, [','])
-                    n = parse(Int, lsplit[1])
-                    c = [parse(Float64, x) for x in lsplit[2:end]]
-                    push!(node_numbers, n)
-                    append!(coord_vec, c)
+                read_nodes!(f, node_numbers, coord_vec)
+            elseif ((m = match(r"\*Element", header)) != nothing)
+                if ((m = match(r"\*Element, type=(.*), ELSET=(.*)", header)) != nothing)
+                    read_elements!(f, elements, m.captures[1], m.captures[2], element_sets)
+                elseif ((m = match(r"\*Element, type=(.*), ELSET=(.*)", header)) != nothing)
+                    read_elements!(f, elements, m.captures[1])
                 end
-
-            elseif ((m = match(r"\*Element, type=(.*)", header)) != nothing)
-                element_numbers = Int[]
-                topology_vec = Int[]
-                n_elements = 0
-                while !iskeyword(peek_line(f))
-                    l = strip(eat_line(f))
-                    l == "" && continue
-                    n_elements += 1
-                    l_split = split(l, [','])
-                    ele_data = [parse(Int, x) for x in l_split]
-                    push!(element_numbers, ele_data[1])
-                    append!(topology_vec, ele_data[2:end])
-                end
-                elements[m.captures[1]] = AbaqusElements(element_numbers,
-                    reshape(topology_vec, length(topology_vec) ÷ n_elements, n_elements))
-
             elseif ((m = match(r"\*Elset, elset=(.*)", header)) != nothing)
-                if endswith(m.captures[1], "generate")
-                    lsplit = split(strip(eat_line(f)), [','])
-                    start, stop, step = [parse(Int, x) for x in lsplit]
-                    vertices = collect(start:step:stop)
-                    elsetname = split(m.captures[1], [','])[1]
-                else
-                    buf = IOBuffer()
-                    while !iskeyword(peek_line(f))
-                        print(buf, eat_line(f))
-                    end
-                    buf_split = split(strip(takebuf_string(buf)), [','])
-                    # Deal with annoying edge case when sets have 1 element
-                    buf_split = buf_split[buf_split .!= ""]
-                    vertices = [parse(Int, x) for x in buf_split]
-                    elsetname = m.captures[1]
-                end
-                element_sets[elsetname] = vertices
+                read_set!(f, element_sets, m.captures[1])
             elseif ((m = match(r"\*Nset, nset=(.*)", header)) != nothing)
-                if endswith(m.captures[1], "generate")
-                    lsplit = split(strip(eat_line(f)), [','])
-                    start, stop, step = [parse(Int, x) for x in lsplit]
-                    nodes = collect(start:step:stop)
-                    nodesetname = split(m.captures[1], [','])[1]
-                else
-                    buf = IOBuffer()
-                    while !iskeyword(peek_line(f))
-                        print(buf, eat_line(f))
-                    end
-                    buf_split = split(strip(takebuf_string(buf)), [','])
-                    # Deal with annoying edge case when sets have 1 node
-                    buf_split = buf_split[buf_split .!= ""]
-                    nodes = [parse(Int, x) for x in buf_split]
-                    nodesetname = m.captures[1]
-                end
-                node_sets[nodesetname] = nodes
-
+                read_set!(f, node_sets, m.captures[1])
             elseif ((m = match(r"\*End Part", header)) != nothing)
                 l = eat_line(f)
             # Ignore unused keywords
@@ -122,6 +133,3 @@ function load(fn::File{format"ABAQUS_INP"})
         return AbaqusMesh(abaqus_nodes, elements, node_sets, element_sets)
     end
 end
-
-
-
