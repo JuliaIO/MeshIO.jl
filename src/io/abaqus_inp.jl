@@ -45,9 +45,14 @@ function read_nodes!(f, node_numbers::Vector{Int}, coord_vec::Vector{Float64})
     end
 end
 
-function read_elements!(f, elements, element_type::AbstractString, element_set="", element_sets=nothing)
-    element_numbers = Int[]
-    topology_vec = Int[]
+function read_elements!(f, elements, topology_vectors, element_number_vectors, element_type::AbstractString, element_set="", element_sets=nothing)
+    if !haskey(topology_vectors, element_type)
+        topology_vectors[element_type] = Int[]
+        element_number_vectors[element_type] = Int[]
+    end
+    topology_vec = topology_vectors[element_type]
+    element_numbers = element_number_vectors[element_type]
+
     element_data = get_string_block(f)
     for elementline in element_data
         element = split(elementline, ',', keep = false)
@@ -57,9 +62,6 @@ function read_elements!(f, elements, element_type::AbstractString, element_set="
         vertices = [parse(Int, element[i]) for i in 2:length(element)]
         append!(topology_vec, vertices)
     end
-    n_elements = length(element_numbers)
-    elements[element_type] = AbaqusElements(element_numbers,
-        reshape(topology_vec, length(topology_vec) ÷ n_elements, n_elements))
     if element_set != ""
         element_sets[element_set] = copy(element_numbers)
     end
@@ -90,6 +92,9 @@ function load(fn::File{format"ABAQUS_INP"})
         node_numbers = Int[]
         coord_vec = Float64[]
 
+        topology_vectors = Dict{String, Vector{Int}}()
+        element_number_vectors = Dict{String, Vector{Int}}()
+
         elements = Dict{String, AbaqusElements}()
         node_sets = Dict{String, Vector{Int}}()
         element_sets = Dict{String, Vector{Int}}()
@@ -105,9 +110,9 @@ function load(fn::File{format"ABAQUS_INP"})
                 read_nodes!(f, node_numbers, coord_vec)
             elseif ((m = match(r"\*Element", header)) != nothing)
                 if ((m = match(r"\*Element, type=(.*), ELSET=(.*)", header)) != nothing)
-                    read_elements!(f, elements, m.captures[1], m.captures[2], element_sets)
+                    read_elements!(f, elements, topology_vectors, element_number_vectors,  m.captures[1], m.captures[2], element_sets)
                 elseif ((m = match(r"\*Element, type=(.*), ELSET=(.*)", header)) != nothing)
-                    read_elements!(f, elements, m.captures[1])
+                    read_elements!(f, elements, topology_vectors, element_number_vectors,  m.captures[1])
                 end
             elseif ((m = match(r"\*Elset, elset=(.*)", header)) != nothing)
                 read_set!(f, element_sets, m.captures[1])
@@ -128,6 +133,14 @@ function load(fn::File{format"ABAQUS_INP"})
                     error("Unknown header: $header")
                 end
             end
+        end
+
+        for element_type in keys(topology_vectors)
+            topology_vec = topology_vectors[element_type]
+            element_numbers = element_number_vectors[element_type]
+            n_elements = length(element_numbers)
+            elements[element_type] = AbaqusElements(element_numbers,
+            reshape(topology_vec, length(topology_vec) ÷ n_elements, n_elements))
         end
         abaqus_nodes = AbaqusNodes(node_numbers, reshape(coord_vec, 3, length(coord_vec) ÷ 3))
         return AbaqusMesh(abaqus_nodes, elements, node_sets, element_sets)
