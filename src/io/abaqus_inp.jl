@@ -35,7 +35,7 @@ function read_nodes!(f, node_numbers::Vector{Int}, coord_vec::Vector{Float64})
     node_data = get_string_block(f)
     for nodeline in node_data
         node = split(nodeline, ',', keep = false)
-        length(node) == 1 && continue
+        length(node) == 0 && continue
         n = parse(Int, node[1])
         x = parse(Float64, node[2])
         y = parse(Float64, node[3])
@@ -52,18 +52,19 @@ function read_elements!(f, elements, topology_vectors, element_number_vectors, e
     end
     topology_vec = topology_vectors[element_type]
     element_numbers = element_number_vectors[element_type]
-
+    element_numbers_new = Int[]
     element_data = get_string_block(f)
     for elementline in element_data
         element = split(elementline, ',', keep = false)
         length(element) == 0 && continue
         n = parse(Int, element[1])
-        push!(element_numbers, n)
+        push!(element_numbers_new, n)
         vertices = [parse(Int, element[i]) for i in 2:length(element)]
         append!(topology_vec, vertices)
     end
+    append!(element_numbers, element_numbers_new)
     if element_set != ""
-        element_sets[element_set] = copy(element_numbers)
+        element_sets[element_set] = copy(element_numbers_new)
     end
 end
 
@@ -111,7 +112,7 @@ function load(fn::File{format"ABAQUS_INP"})
             elseif ((m = match(r"\*Element", header)) != nothing)
                 if ((m = match(r"\*Element, type=(.*), ELSET=(.*)", header)) != nothing)
                     read_elements!(f, elements, topology_vectors, element_number_vectors,  m.captures[1], m.captures[2], element_sets)
-                elseif ((m = match(r"\*Element, type=(.*), ELSET=(.*)", header)) != nothing)
+                elseif ((m = match(r"\*Element, type=(.*)", header)) != nothing)
                     read_elements!(f, elements, topology_vectors, element_number_vectors,  m.captures[1])
                 end
             elseif ((m = match(r"\*Elset, elset=(.*)", header)) != nothing)
