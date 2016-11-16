@@ -130,6 +130,16 @@ facts("MeshIO") do
             #@fact length(vertices(msh)) --> 2248
             #@fact length(normals(msh)) --> 2248
         end
+
+        context("INP") do
+            abaqus_mesh = load(joinpath(tf, "abaqus_inp.inp"))
+            @fact abaqus_mesh.elements["C3D4"].numbers --> collect(685:1683)
+            @fact abaqus_mesh.node_sets["X1Y0"] --> [6,   9,  32,  38, 114, 145]
+            @fact abaqus_mesh.element_sets["FACE3"] --> collect(43:60)
+            @fact abaqus_mesh.element_sets["FACE23"] --> [284]
+            @fact abaqus_mesh.nodes.coordinates[:, 1] --> [0., 0., 0.480836332]
+            @fact abaqus_mesh.nodes.coordinates[:, 289] --> [0.131261081, 0.0834643841,  0.886838138]
+        end
     end
 end
 

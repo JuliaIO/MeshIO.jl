@@ -10,19 +10,24 @@ import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagi
 @compat import Base.show
 
 
-
+include("io/parse_utilities.jl")
 include("io/off.jl")
 include("io/ply.jl")
 include("io/stl.jl")
 include("io/obj.jl")
 include("io/2dm.jl")
+include("io/abaqus_inp.jl")
 
-load{format}(fn::File{format}, MeshType=GLNormalMesh) = open(fn) do s
-	skipmagic(s)
-	load(s, MeshType)
+function load{format}(fn::File{format}, MeshType=GLNormalMesh)
+    open(fn) do s
+        skipmagic(s)
+        load(s, MeshType)
+    end
 end
-save{format}(fn::File{format}, msh::AbstractMesh) = open(fn, "w") do s
-	save(s, msh)
+function save{format}(fn::File{format}, msh::AbstractMesh)
+    open(fn, "w") do s
+        save(s, msh)
+    end
 end
 
 end # module
