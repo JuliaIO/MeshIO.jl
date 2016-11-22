@@ -78,6 +78,6 @@ end
 @compat (::ParseFunctor{T}){T}(x) = parse(T, x)
 
 function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{SubString{Compat.ASCIIString}})
-    poly_face = Face{length(vertex_indices), UInt32, 0}(map(ParseFunctor(UInt32), vertex_indices))
+    poly_face = Face{length(vertex_indices), UInt32}(map(ParseFunctor(UInt32), vertex_indices))
     decompose(Tf, poly_face)
 end

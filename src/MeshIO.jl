@@ -7,6 +7,8 @@ using Compat
 import FileIO
 
 import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagic
+import GeometryTypes: raw
+
 @compat import Base.show
 
 

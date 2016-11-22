@@ -1,3 +1,4 @@
+
 function save(str::Stream{format"OFF"}, msh::AbstractMesh)
     # writes an OFF geometry file, with colors
     #  see http://people.sc.fsu.edu/~jburkardt/data/off/off.html
@@ -23,18 +24,20 @@ function save(str::Stream{format"OFF"}, msh::AbstractMesh)
         f = fcs[i]
         c = isa(cs, Array) ? RGBA{Float32}(cs[i]) : cs
         facelen = length(f)
+        # convert GLIndex, since it must be 0 indexed. Then take the raw value
         println(io, 
-            facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ", 
+            facelen, " ", join(map(x-> raw(GLIndex(x)), f), " "), " ", 
             join((red(c), green(c), blue(c), alpha(c)), " ")
         )
     end
     close(io)
 end
 
-function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
+function load(st::Stream{format"OFF"}, MeshType = GLNormalMesh)
     io = stream(st)
     local vts
     FT = facetype(MeshType)
+    ET = eltype(FT)
     VT = vertextype(MeshType)
     fcs = FT[] # faces might be triangulated, so we can't assume count
     nV = 0
@@ -56,15 +59,18 @@ function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
             continue
         elseif found_counts # read faces
             splitted = split(txt)
-            facelen  = @compat parse(Int, shift!(splitted))
+            facelen = parse(Int, shift!(splitted))
+            # TODO parse colors
             if facelen == 3
-                push!(fcs, GLTriangle(splitted))
+                f = map(x-> parse(Int, x) + 1, splitted[1:3])
+                push!(fcs, GLTriangle(f))
             elseif facelen == 4
-                push!(fcs, decompose(FT, Face{4, Cuint, -1}(splitted))...)
+                f = Face{4, GLIndex}(map(x-> parse(Int, x) + 1, splitted[1:4]))
+                push!(fcs, decompose(FT, f)...)
             end
             continue
         elseif !found_counts && isdigit(split(txt)[1]) # vertex and face counts
-            counts = Int[@compat parse(Int, s) for s in split(txt)]
+            counts = Int[parse(Int, s) for s in split(txt)]
             nV = counts[1]
             nF = counts[2]
             vts = Array(VT, nV)

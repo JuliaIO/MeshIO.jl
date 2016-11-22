@@ -1,5 +1,5 @@
 # | Read a .2dm (SMS Aquaveo) mesh-file and construct a @Mesh@
-function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
+function load(st::Stream{format"2DM"}, MeshType = GLNormalMesh)
     FT       = facetype(MeshType)
     VT       = vertextype(MeshType)
     faces    = FT[]
@@ -12,9 +12,9 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
             if w[1] == "ND"
                 push!(vertices, Point{3, Float32}(w[3:end]))
             elseif w[1] == "E3T"
-                push!(faces, Face{3, Cuint, 0}(w[3:5]))
+                push!(faces, Face{3, Cuint}(w[3:5]))
             elseif w[1] == "E4Q"
-                push!(faces, decompose(FT, Face{4, Cuint, 0}(w[3:6]))...)
+                push!(faces, decompose(FT, Face{4, Cuint}(w[3:6]))...)
             else
                 continue
             end
@@ -23,13 +23,14 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
     MeshType(vertices, faces)
 end
 
-function render{T, O}(i::Int, f::Face{3, T, O})
-    string("E3T $i ", join(Face{3, Cuint, 0}(f), " "))
+function render{T}(i::Int, f::Face{3, T})
+    string("E3T $i ", join(Face{3, Int}(f), " "))
 end
 
-function render{T, O}(i::Int, f::Face{4, T, O})
-    string("E4Q $i ", join(Face{4, Cuint, 0}(f), " "))
+function render{T}(i::Int, f::Face{4, T})
+    string("E4Q $i ", join(Face{4, Int}(f), " "))
 end
+
 # | Write @Mesh@ to an IOStream
 function save(st::Stream{format"2DM"}, m::AbstractMesh)
     io = stream(st)

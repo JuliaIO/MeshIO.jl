@@ -1,7 +1,7 @@
 function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     io = stream(f)
     vts = decompose(Point{3, Float32}, msh)
-    fcs = decompose(Face{3, Int32, -1}, msh)
+    fcs = decompose(Face{3, ZeroIndex{Int32}}, msh)
 
     nV = length(vts)
     nF = length(fcs)
@@ -20,7 +20,7 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
 
     for f in fcs
         write(io, convert(UInt8, 3))
-        write(io, f...)
+        write(io, map(raw, f)...)
     end
     close(io)
 end
@@ -48,7 +48,7 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
         println(io, join(Point{3, Float32}(v), " "))
     end
     for f in fcs
-        println(io, length(f), " ", join(Face{3, Cuint, -1}(f), " "))
+        println(io, length(f), " ", join(map(x-> raw(GLIndex(x)), f), " "))
     end
     close(io)
 end
@@ -87,12 +87,13 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     end
 
     for i = 1:nF
-        line    = split(readline(io))
-        len     = parse(Int, shift!(line))
+        line = split(readline(io))
+        len = parse(Int, shift!(line))
+        f = map(x-> parse(Int, x) + 1, line[1:len])
         if len == 3
-            push!(fcs, Face{len, FaceEltype, -1}(line)) # line looks like: "3 0 1 3"
+            push!(fcs, Face{3}(f)) # line looks like: "3 0 1 3"
         elseif len == 4
-            push!(fcs, decompose(FaceType, Face{len, FaceEltype, -1}(line))...) # line looks like: "4 0 1 2 3"
+            push!(fcs, decompose(FaceType, Face{4}(f))...) # line looks like: "4 0 1 2 3"
         end
     end
 
