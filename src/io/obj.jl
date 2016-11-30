@@ -19,19 +19,21 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
         if !startswith(line, "#") && !isempty(line) && !iscntrl(line) #ignore comments
             lines   = split(line)
             command = shift!(lines) #first is the command, rest the data
-
-            if "v" == command # mesh always has vertices
-                push!(v, Point{3, Float32}(lines)) # should automatically convert to the right type in vertices(mesh)
-            elseif "vn" == command && hasnormals(MT)
-                push!(n, Normal{3, Float32}(lines))
-            elseif "vt" == command && hastexturecoordinates(MT)
+            if command in ("v", "vn", "vt")
                 length(lines) == 2 && push!(lines, "0.0") # length can be two, but obj normaly does three coordinates with the third equals 0.
-                push!(uv, UVW{Float32}(lines))
-            elseif "f" == command #mesh always has faces
-                if any(x->contains(x, "/"), lines)
-                    fs = process_face_uv_or_normal(lines)
+                numbers = map(i-> parse(Float32, lines[i]), Vec(1,2,3))
+                if "v" == command # mesh always has vertices
+                    push!(v, numbers) # should automatically convert to the right type in vertices(mesh)
+                elseif "vn" == command && hasnormals(MT)
+                    push!(n, numbers)
+                elseif "vt" == command && hastexturecoordinates(MT)
+                    push!(uv, numbers)
+                end
+            elseif "f" == command
+                fs = if any(x-> contains(x, "/"), lines)
+                    process_face_uv_or_normal(lines)
                 elseif any(x->contains(x, "//"), lines)
-                    fs = process_face_normal(lines)
+                    process_face_normal(lines)
                 else
                     push!(f, triangulated_faces(Tf, lines)...)
                     continue
@@ -72,12 +74,9 @@ process_face_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunctor("/
 # of form "f v1/vt1 v2/vt2 v3/vt3 ..." or of form "f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...."
 process_face_uv_or_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunctor("/"), lines)
 
-immutable ParseFunctor{T}
-    T::Type{T}
-end
-@compat (::ParseFunctor{T}){T}(x) = parse(T, x)
 
-function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{SubString{Compat.ASCIIString}})
-    poly_face = Face{length(vertex_indices), UInt32}(map(ParseFunctor(UInt32), vertex_indices))
+function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector)
+    parsed = map(x-> parse(UInt32, x), vertex_indices)
+    poly_face = Face(parsed...)
     decompose(Tf, poly_face)
 end

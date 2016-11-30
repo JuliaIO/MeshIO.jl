@@ -19,12 +19,12 @@ include("io/stl.jl")
 include("io/obj.jl")
 include("io/2dm.jl")
 
-load{format}(fn::File{format}, MeshType=GLNormalMesh) = open(fn) do s
-	skipmagic(s)
-	load(s, MeshType)
+load{format}(fn::File{format}, MeshType = GLNormalMesh) = open(fn) do s
+    skipmagic(s)
+    load(s, MeshType)
 end
 save{format}(fn::File{format}, msh::AbstractMesh) = open(fn, "w") do s
-	save(s, msh)
+    save(s, msh)
 end
 
 end # module
