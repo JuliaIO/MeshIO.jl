@@ -4,19 +4,17 @@
 #
 ##############################
 
-function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GLNormalMesh)
+function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = GLNormalMesh)
     io           = stream(io)
     lineNumber   = 1
-    Tv,Tn,Tuv,Tf = vertextype(MT), normaltype(MT), texturecoordinatetype(MT), facetype(MT)
-    v,n,uv,f     = Tv[], Tn[], Tuv[], Tf[]
+    Tv, Tn, Tuv, Tf = vertextype(MT), normaltype(MT), texturecoordinatetype(MT), facetype(MT)
+    v, n, uv, f  = Tv[], Tn[], Tuv[], Tf[]
     last_command = ""
     attrib_type  = nothing
     for line in eachline(io)
         # read a line, remove newline and leading/trailing whitespaces
         line = strip(chomp(line))
-        !isvalid(line) && error("non valid ascii in obj")
-
-        if !startswith(line, "#") && !isempty(line) && !iscntrl(line) #ignore comments
+        if !startswith(line, "#") && !isempty(line) && !all(iscntrl, line) #ignore comments
             lines   = split(line)
             command = shift!(lines) #first is the command, rest the data
             if command in ("v", "vn", "vt")
