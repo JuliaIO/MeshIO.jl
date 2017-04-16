@@ -56,7 +56,7 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
     end
     !isempty(uv) && (attributes[:texturecoordinates] = uv)
 
-    return MT(HomogenousMesh(attributes))
+    return MT(GeometryTypes.homogenousmesh(attributes))
 end
 
 
