@@ -12,7 +12,7 @@ facts("MeshIO") do
     ]
     mesh = merge(map(GLPlainMesh, mesh))
     mktempdir() do tmpdir
-        for ext in ["2dm", "off"]
+        for ext in ["2dm", "off", "ifs"]
             context("load save $ext") do
                 save(joinpath(tmpdir, "test.$ext"), mesh)
                 mesh_loaded = load(joinpath(tmpdir, "test.$ext"), GLPlainMesh)
