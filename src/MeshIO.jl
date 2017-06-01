@@ -2,6 +2,7 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module MeshIO
 
 using GeometryTypes
+using GeometryTypes: raw
 using ColorTypes
 import FileIO
 

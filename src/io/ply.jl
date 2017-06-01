@@ -20,7 +20,7 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
 
     for f in fcs
         write(io, convert(UInt8, 3))
-        write(io, f...)
+        write(io, raw.(f)...)
     end
     close(io)
 end
@@ -48,7 +48,7 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
         println(io, join(Point{3, Float32}(v), " "))
     end
     for f in fcs
-        println(io, length(f), " ", join(Int.(Face{3, ZeroIndex{Cuint}}(f)), " "))
+        println(io, length(f), " ", join(raw.(Face{3, ZeroIndex{Cuint}}(f)), " "))
     end
     close(io)
 end
@@ -77,22 +77,22 @@ function load(fs::Stream{format"PLY_ASCII"}, MeshType=GLNormalMesh)
     FaceType    = facetype(MeshType)
     FaceEltype  = eltype(FaceType)
 
-    vts         = Array(VertexType, nV)
-    #fcs         = Array(FaceType, nF)
+    vts         = Array{VertexType}(nV)
+    #fcs         = Array{FaceType}(nF)
     fcs         = FaceType[]
 
     # read the data
     for i = 1:nV
-        vts[i] = VertexType(split(readline(io))) # line looks like: "-0.018 0.038 0.086"
+        vts[i] = VertexType(parse.(eltype(VertexType), split(readline(io)))) # line looks like: "-0.018 0.038 0.086"
     end
 
     for i = 1:nF
         line    = split(readline(io))
         len     = parse(Int, shift!(line))
         if len == 3
-            push!(fcs, Face{len, ZeroIndex{FaceEltype}}(line)) # line looks like: "3 0 1 3"
+            push!(fcs, Face{3, FaceEltype}(parse.(Int, line) .+ 1)) # line looks like: "3 0 1 3"
         elseif len == 4
-            push!(fcs, decompose(FaceType, Face{len, ZeroIndex{FaceEltype}}(line))...) # line looks like: "4 0 1 2 3"
+            push!(fcs, decompose(FaceType, Face{4, FaceEltype}(parse.(Int, line) .+ 1))...) # line looks like: "4 0 1 2 3"
         end
     end
 

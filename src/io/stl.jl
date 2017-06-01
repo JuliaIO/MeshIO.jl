@@ -70,12 +70,12 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     VertexType  = vertextype(MeshType)
     NormalType  = normaltype(MeshType)
 
-    faces       = Array(FaceType,   triangle_count)
-    vertices    = Array(VertexType, triangle_count*3)
-    normals     = Array(NormalType, triangle_count*3)
+    faces       = Array{FaceType}(triangle_count)
+    vertices    = Array{VertexType}(triangle_count*3)
+    normals     = Array{NormalType}(triangle_count*3)
     i = 0
     while !eof(io)
-        faces[i+1]      = Face{3, ZeroIndex{Int}}(i*3, i*3+1, i*3+2)
+        faces[i+1]      = Face{3, ZeroIndex{Int}}(i*3+1, i*3+2, i*3+3)
         normals[i*3+1]  = NormalType(read(io, Float32), read(io, Float32), read(io, Float32))
         normals[i*3+2]  = normals[i*3+1] # hurts, but we need per vertex normals
         normals[i*3+3]  = normals[i*3+1]
@@ -111,7 +111,7 @@ function load(fs::Stream{format"STL_ASCII"}, MeshType=GLNormalMesh)
             #normal = NormalType(line[3:5])
             readline(io) # Throw away outerloop
             for i=1:3
-                vertex = VertexType(split(readline(io))[2:4])
+                vertex = VertexType(parse.(eltype(VertexType), split(readline(io))[2:4]))
                 if topology
                     idx = findfirst(vertices(mesh), vertex)
                 end
