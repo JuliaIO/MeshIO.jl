@@ -61,9 +61,9 @@ end
 
 
 immutable SplitFunctor
-    seperator::Compat.UTF8String
+    seperator::String
 end
-@compat (s::SplitFunctor)(array) = split(array, s.seperator)
+(s::SplitFunctor)(array) = split(array, s.seperator)
 
 # of form "f v1 v2 v3 ....""
 process_face{S <: AbstractString}(lines::Vector{S}) = (lines,) # just put it in the same format as the others
@@ -75,9 +75,9 @@ process_face_uv_or_normal{S <: AbstractString}(lines::Vector{S}) = map(SplitFunc
 immutable ParseFunctor{T}
     T::Type{T}
 end
-@compat (::ParseFunctor{T}){T}(x) = parse(T, x)
+(::ParseFunctor{T}){T}(x) = parse(T, x)
 
-function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{SubString{Compat.ASCIIString}})
-    poly_face = Face{length(vertex_indices), UInt32, 0}(map(ParseFunctor(UInt32), vertex_indices))
+function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{<:AbstractString})
+    poly_face = Face{length(vertex_indices), UInt32}(map(ParseFunctor(UInt32), vertex_indices))
     decompose(Tf, poly_face)
 end

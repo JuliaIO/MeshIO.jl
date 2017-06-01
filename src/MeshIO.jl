@@ -3,11 +3,10 @@ module MeshIO
 
 using GeometryTypes
 using ColorTypes
-using Compat
 import FileIO
 
 import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagic
-@compat import Base.show
+import Base.show
 
 
 

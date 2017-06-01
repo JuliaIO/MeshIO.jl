@@ -24,7 +24,7 @@ function save(str::Stream{format"OFF"}, msh::AbstractMesh)
         c = isa(cs, Array) ? RGBA{Float32}(cs[i]) : cs
         facelen = length(f)
         println(io, 
-            facelen, " ", join(Face{facelen, Cuint, -1}(f), " "), " ", 
+            facelen, " ", join(Int.(Face{facelen, ZeroIndex{Cuint}}(f)), " "), " ", 
             join((red(c), green(c), blue(c), alpha(c)), " ")
         )
     end
@@ -45,10 +45,10 @@ function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
 
     while !eof(io)
         txt = readline(io)
-        if startswith(txt, "#") || isempty(txt) ||iscntrl(txt) #comment or others
+        if startswith(txt, "#") || isempty(txt) || all(iscntrl, txt) #comment or others
             continue
         elseif found_counts && read_verts < nV # read verts
-            vert = VT(split(txt))
+            vert = VT(parse.(eltype(VT), split(txt)))
             if length(vert) == 3
                 read_verts += 1
                 vts[read_verts] = vert
@@ -56,18 +56,18 @@ function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
             continue
         elseif found_counts # read faces
             splitted = split(txt)
-            facelen  = @compat parse(Int, shift!(splitted))
+            facelen  = parse(Int, shift!(splitted))
             if facelen == 3
-                push!(fcs, GLTriangle(splitted))
+                push!(fcs, GLTriangle(parse.(Cuint, splitted[1:3])))
             elseif facelen == 4
-                push!(fcs, decompose(FT, Face{4, Cuint, -1}(splitted))...)
+                push!(fcs, decompose(FT, Face{4, OffsetInteger{-1, Cuint}}(splitted[1:4]))...)
             end
             continue
-        elseif !found_counts && isdigit(split(txt)[1]) # vertex and face counts
-            counts = Int[@compat parse(Int, s) for s in split(txt)]
+        elseif !found_counts && all(isdigit, split(txt)[1]) # vertex and face counts
+            counts = Int[parse(Int, s) for s in split(txt)]
             nV = counts[1]
             nF = counts[2]
-            vts = Array(VT, nV)
+            vts = Array{VT}(nV)
             found_counts = true
         end
     end

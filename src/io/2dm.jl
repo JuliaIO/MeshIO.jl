@@ -6,15 +6,15 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
     vertices = VT[]
     io = stream(st)
     for line = readlines(io)
-        if !isempty(line) && !iscntrl(line)
+        if !isempty(line) && !all(iscntrl, line)
             line = chomp(line)
             w = split(line)
             if w[1] == "ND"
-                push!(vertices, Point{3, Float32}(w[3:end]))
+                push!(vertices, Point{3, Float32}(parse.(Float32, w[3:end])))
             elseif w[1] == "E3T"
-                push!(faces, Face{3, Cuint, 0}(w[3:5]))
+                push!(faces, Face{3, Cuint}(parse.(Cuint, w[3:5])))
             elseif w[1] == "E4Q"
-                push!(faces, decompose(FT, Face{4, Cuint, 0}(w[3:6]))...)
+                push!(faces, decompose(FT, Face{4, Cuint}(parse.(Cuint, w[3:6])))...)
             else
                 continue
             end
@@ -23,12 +23,12 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
     MeshType(vertices, faces)
 end
 
-function render{T, O}(i::Int, f::Face{3, T, O})
-    string("E3T $i ", join(Face{3, Cuint, 0}(f), " "))
+function render(i::Int, f::Face{3})
+    string("E3T $i ", join(Face{3, Cuint}(f), " "))
 end
 
-function render{T, O}(i::Int, f::Face{4, T, O})
-    string("E4Q $i ", join(Face{4, Cuint, 0}(f), " "))
+function render(i::Int, f::Face{4})
+    string("E4Q $i ", join(Face{4, Cuint}(f), " "))
 end
 # | Write @Mesh@ to an IOStream
 function save(st::Stream{format"2DM"}, m::AbstractMesh)
@@ -43,4 +43,4 @@ function save(st::Stream{format"2DM"}, m::AbstractMesh)
     nothing
 end
 
-@compat show(io::IO, ::MIME"model/2dm", mesh::AbstractMesh) = save(io, mesh)
+show(io::IO, ::MIME"model/2dm", mesh::AbstractMesh) = save(io, mesh)
