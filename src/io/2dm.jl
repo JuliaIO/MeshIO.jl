@@ -24,11 +24,11 @@ function load(st::Stream{format"2DM"}, MeshType=GLNormalMesh)
 end
 
 function render(i::Int, f::Face{3})
-    string("E3T $i ", join(Face{3, Cuint}(f), " "))
+    string("E3T $i ", join(Int.(f), " "))
 end
 
 function render(i::Int, f::Face{4})
-    string("E4Q $i ", join(Face{4, Cuint}(f), " "))
+    string("E4Q $i ", join(Int.(f), " "))
 end
 # | Write @Mesh@ to an IOStream
 function save(st::Stream{format"2DM"}, m::AbstractMesh)
