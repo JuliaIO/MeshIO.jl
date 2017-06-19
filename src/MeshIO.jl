@@ -2,12 +2,12 @@ VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
 module MeshIO
 
 using GeometryTypes
+using GeometryTypes: raw
 using ColorTypes
-using Compat
 import FileIO
 
 import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagic
-@compat import Base.show
+import Base.show
 
 
 

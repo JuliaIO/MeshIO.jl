@@ -1,6 +1,5 @@
-julia 0.4
+julia 0.6-pre
 
-GeometryTypes
+GeometryTypes 0.4
 ColorTypes
-Compat 0.8.7
 FileIO
