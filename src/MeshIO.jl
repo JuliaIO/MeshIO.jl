@@ -1,4 +1,4 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
+__precompile__(true)
 module MeshIO
 
 using GeometryTypes
@@ -18,11 +18,11 @@ include("io/obj.jl")
 include("io/2dm.jl")
 
 load{format}(fn::File{format}, MeshType=GLNormalMesh) = open(fn) do s
-	skipmagic(s)
-	load(s, MeshType)
+    skipmagic(s)
+    load(s, MeshType)
 end
 save{format}(fn::File{format}, msh::AbstractMesh) = open(fn, "w") do s
-	save(s, msh)
+    save(s, msh)
 end
 
 end # module
