@@ -4,11 +4,12 @@
 #
 ##############################
 
-function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GLNormalMesh)
+function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = GLNormalMesh)
     io           = stream(io)
     lineNumber   = 1
     Tv,Tn,Tuv,Tf = vertextype(MT), normaltype(MT), texturecoordinatetype(MT), facetype(MT)
     v,n,uv,f     = Tv[], Tn[], Tuv[], Tf[]
+    f_uv_n_faces = (f, GLTriangle[], GLTriangle[])
     last_command = ""
     attrib_type  = nothing
     for line in eachline(io)
@@ -25,8 +26,13 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
             elseif "vn" == command && hasnormals(MT)
                 push!(n, Normal{3, Float32}(parse.(Float32, lines)))
             elseif "vt" == command && hastexturecoordinates(MT)
-                length(lines) == 2 && push!(lines, "0.0") # length can be two, but obj normaly does three coordinates with the third equals 0.
-                push!(uv, UVW{Float32}(parse.(Float32, lines)))
+                if length(lines) == 2
+                    push!(uv, UV{Float32}(parse.(Float32, lines)))
+                elseif length(lines) == 3
+                    push!(uv, UVW{Float32}(parse.(Float32, lines)))
+                else
+                    error("Unknown UVW coordinate: $lines")
+                end
             elseif "f" == command #mesh always has faces
                 if any(x->contains(x, "/"), lines)
                     fs = process_face_uv_or_normal(lines)
@@ -36,7 +42,9 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
                     push!(f, triangulated_faces(Tf, lines)...)
                     continue
                 end
-                push!(f, triangulated_faces(Tf, map(first, fs))...)
+                for i = 1:length(fs)
+                    push!(f_uv_n_faces[i], triangulated_faces(Tf, getindex.(fs, i))...)
+                end
             else
                 #TODO
             end
@@ -48,15 +56,40 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT}=GL
     !isempty(f) && (attributes[:faces] = f)
     !isempty(v) && (attributes[:vertices] = v)
     if !isempty(n)
-        if length(v) != length(n) # these are not per vertex normals, which we
+        n = if !isempty(f_uv_n_faces[3])
+            _n = similar(v, eltype(n))
+            for (vf, nf) in zip(f, f_uv_n_faces[3])
+                for (vidx, nidx) in zip(vf, nf)
+                    _n[vidx] = n[nidx]
+                end
+            end
+            _n
+        else
+            # these are not per vertex normals, which we
             # can't deal with at the moment
-            n = normals(v, f, Tn)
+            if length(v) != length(n)
+                normals(v, f, Tn)
+            else
+                n
+            end
         end
         attributes[:normals] = n
     end
-    !isempty(uv) && (attributes[:texturecoordinates] = uv)
-
-    return MT(HomogenousMesh(attributes))
+    if !isempty(uv)
+        uv = if !isempty(f_uv_n_faces[2])
+            _uv = similar(v, eltype(uv))
+            for (vf, uvf) in zip(f, f_uv_n_faces[2])
+                for (vidx, uvidx) in zip(vf, uvf)
+                    _uv[vidx] = uv[uvidx]
+                end
+            end
+            _uv
+        else
+            uv
+        end
+        attributes[:texturecoordinates] = uv
+    end
+    return MT(GeometryTypes.homogenousmesh(attributes))
 end
 
 # of form "f v1 v2 v3 ....""
