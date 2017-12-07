@@ -42,7 +42,7 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
                     push!(f, triangulated_faces(Tf, lines)...)
                     continue
                 end
-                for i = 1:length(fs)
+                for i = 1:length(first(fs))
                     push!(f_uv_n_faces[i], triangulated_faces(Tf, getindex.(fs, i))...)
                 end
             else
