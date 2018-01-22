@@ -122,6 +122,10 @@ const tf = joinpath(dirname(@__FILE__), "testfiles")
             @test length(faces(msh)) == 4
             @test length(vertices(msh)) == 6
 
+            msh = load(joinpath(tf, "test_face_normal.obj"))
+            @test length(faces(msh)) == 1
+            @test length(vertices(msh)) == 3
+
         end
         @testset "2DM" begin
             msh = load(joinpath(tf, "test.2dm"))
