@@ -34,10 +34,10 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
                     error("Unknown UVW coordinate: $lines")
                 end
             elseif "f" == command #mesh always has faces
-                if any(x->contains(x, "/"), lines)
-                    fs = process_face_uv_or_normal(lines)
-                elseif any(x->contains(x, "//"), lines)
+                if any(x->contains(x, "//"), lines)
                     fs = process_face_normal(lines)
+                elseif any(x->contains(x, "/"), lines)
+                    fs = process_face_uv_or_normal(lines)
                 else
                     push!(f, triangulated_faces(Tf, lines)...)
                     continue
