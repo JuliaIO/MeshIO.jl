@@ -5,16 +5,14 @@
 ##############################
 
 function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = GLNormalMesh)
-    io           = stream(io)
-    lineNumber   = 1
     Tv,Tn,Tuv,Tf = vertextype(MT), normaltype(MT), texturecoordinatetype(MT), facetype(MT)
     v,n,uv,f     = Tv[], Tn[], Tuv[], Tf[]
     f_uv_n_faces = (f, GLTriangle[], GLTriangle[])
     last_command = ""
     attrib_type  = nothing
-    for line in eachline(io)
+    for full_line::String in eachline(stream(io))
         # read a line, remove newline and leading/trailing whitespaces
-        line = strip(chomp(line))
+        line = strip(chomp(full_line))
         !isascii(line) && error("non valid ascii in obj")
 
         if !startswith(line, "#") && !isempty(line) && !all(iscntrl, line) #ignore comments
@@ -39,24 +37,22 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
                 elseif any(x->contains(x, "/"), lines)
                     fs = process_face_uv_or_normal(lines)
                 else
-                    push!(f, triangulated_faces(Tf, lines)...)
+                    append!(f, triangulated_faces(Tf, lines))
                     continue
                 end
                 for i = 1:length(first(fs))
-                    push!(f_uv_n_faces[i], triangulated_faces(Tf, getindex.(fs, i))...)
+                    append!(f_uv_n_faces[i], triangulated_faces(Tf, getindex.(fs, i)))
                 end
             else
                 #TODO
             end
         end
-        # read next line
-        lineNumber += 1
     end
     attributes = Dict{Symbol, Any}()
     !isempty(f) && (attributes[:faces] = f)
     !isempty(v) && (attributes[:vertices] = v)
     if !isempty(n)
-        n = if !isempty(f_uv_n_faces[3])
+        attributes[:normals] = if !isempty(f_uv_n_faces[3])
             _n = similar(v, eltype(n))
             for (vf, nf) in zip(f, f_uv_n_faces[3])
                 for (vidx, nidx) in zip(vf, nf)
@@ -73,10 +69,9 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
                 n
             end
         end
-        attributes[:normals] = n
     end
     if !isempty(uv)
-        uv = if !isempty(f_uv_n_faces[2])
+        attributes[:texturecoordinates] = if !isempty(f_uv_n_faces[2])
             _uv = similar(v, eltype(uv))
             for (vf, uvf) in zip(f, f_uv_n_faces[2])
                 for (vidx, uvidx) in zip(vf, uvf)
@@ -87,9 +82,8 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
         else
             uv
         end
-        attributes[:texturecoordinates] = uv
     end
-    return MT(GeometryTypes.homogenousmesh(attributes))
+    return MT(GeometryTypes.homogenousmesh(attributes))::MT
 end
 
 # of form "f v1 v2 v3 ....""
