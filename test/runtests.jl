@@ -2,6 +2,14 @@ using FileIO, GeometryTypes
 using Test
 const tf = joinpath(dirname(@__FILE__), "testfiles")
 
+function test_face_indices(mesh)
+    for face in faces(mesh)
+        for index in face
+            @test firstindex(vertices(mesh)) <= index <= lastindex(vertices(mesh))
+        end
+    end
+end
+
 @testset "MeshIO" begin
     dirlen = 1f0
     baselen = 0.02f0
@@ -43,12 +51,14 @@ const tf = joinpath(dirname(@__FILE__), "testfiles")
             @test length(faces(msh)) == 12
             @test length(vertices(msh)) == 36
             @test length(normals(msh)) == 36
+            test_face_indices(msh)
 
             msh = load(joinpath(tf, "binary.stl"))
             @test typeof(msh) == GLNormalMesh
             @test length(faces(msh)) == 828
             @test length(vertices(msh)) == 2484
             @test length(normals(msh)) == 2484
+            test_face_indices(msh)
 
             mktempdir() do tmpdir
                 save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), msh)
@@ -63,22 +73,26 @@ const tf = joinpath(dirname(@__FILE__), "testfiles")
             @test typeof(msh) == GLNormalMesh
             @test length(faces(msh)) == 12
             @test length(vertices(msh)) == 36
+            test_face_indices(msh)
 
             # STL Import
             msh = load(joinpath(tf, "cube_binary.stl"))
             @test length(vertices(msh)) == 36
             @test length(faces(msh)) == 12
+            test_face_indices(msh)
 
 
             msh = load(joinpath(tf, "cube.stl"))
             @test length(vertices(msh)) == 36
             @test length(faces(msh)) == 12
+            test_face_indices(msh)
 
         end
         @testset "PLY" begin
             msh = load(joinpath(tf, "ascii.ply"))
             @test typeof(msh) == GLNormalMesh
             @test length(faces(msh)) == 36
+            test_face_indices(msh)
             @test length(vertices(msh)) == 72
             @test length(normals(msh)) == 72
             #msh = load(joinpath(tf, "binary.ply")) # still missing
@@ -87,6 +101,7 @@ const tf = joinpath(dirname(@__FILE__), "testfiles")
             msh = load(joinpath(tf, "cube.ply")) # quads
             @test length(vertices(msh)) == 24
             @test length(faces(msh)) == 12
+            test_face_indices(msh)
         end
         @testset "OFF" begin
             msh = load(joinpath(tf, "test.off"))
@@ -94,17 +109,20 @@ const tf = joinpath(dirname(@__FILE__), "testfiles")
             @test length(faces(msh)) == 28
             @test length(vertices(msh)) == 20
             @test length(normals(msh)) == 20
+            test_face_indices(msh)
 
             msh = load(joinpath(tf, "test2.off"))
             @test typeof(msh) == GLNormalMesh
             @test length(faces(msh)) == 810
             @test length(vertices(msh)) == 405
             @test length(normals(msh)) == 405
+            test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.off"))
             @test typeof(msh) == GLNormalMesh
             @test length(faces(msh)) == 12
             @test length(vertices(msh)) == 8
+            test_face_indices(msh)
 
         end
         @testset "OBJ" begin
@@ -113,23 +131,28 @@ const tf = joinpath(dirname(@__FILE__), "testfiles")
             @test length(faces(msh)) == 3954
             @test length(vertices(msh)) == 2248
             @test length(normals(msh)) == 2248
+            test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.obj")) # quads
             @test length(faces(msh)) == 12
             @test length(vertices(msh)) == 8
+            test_face_indices(msh)
 
             msh = load(joinpath(tf, "polygonal_face.obj"))
             @test length(faces(msh)) == 4
             @test length(vertices(msh)) == 6
+            test_face_indices(msh)
 
             msh = load(joinpath(tf, "test_face_normal.obj"))
             @test length(faces(msh)) == 1
             @test length(vertices(msh)) == 3
+            test_face_indices(msh)
 
         end
         @testset "2DM" begin
             msh = load(joinpath(tf, "test.2dm"))
             @test typeof(msh) == GLNormalMesh
+            test_face_indices(msh)
             #@test length(faces(msh)) == 3954
             #@test length(vertices(msh)) == 2248
             #@test length(normals(msh)) == 2248
