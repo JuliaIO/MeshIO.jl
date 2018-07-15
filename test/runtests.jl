@@ -1,5 +1,5 @@
 using FileIO, GeometryTypes
-using Base.Test
+using Test
 const tf = joinpath(dirname(@__FILE__), "testfiles")
 
 @testset "MeshIO" begin

@@ -23,8 +23,8 @@ function save(str::Stream{format"OFF"}, msh::AbstractMesh)
         f = fcs[i]
         c = isa(cs, Array) ? RGBA{Float32}(cs[i]) : cs
         facelen = length(f)
-        println(io, 
-            facelen, " ", join(raw.(ZeroIndex.(f)), " "), " ", 
+        println(io,
+            facelen, " ", join(raw.(ZeroIndex.(f)), " "), " ",
             join((red(c), green(c), blue(c), alpha(c)), " ")
         )
     end
@@ -56,7 +56,7 @@ function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
             continue
         elseif found_counts # read faces
             splitted = split(txt)
-            facelen  = parse(Int, shift!(splitted))
+            facelen  = parse(Int, popfirst!(splitted))
             if facelen == 3
                 push!(fcs, GLTriangle(reinterpret(ZeroIndex{Cuint}, parse.(Cuint, splitted[1:3]))))
             elseif facelen == 4
@@ -67,7 +67,7 @@ function load(st::Stream{format"OFF"}, MeshType=GLNormalMesh)
             counts = Int[parse(Int, s) for s in split(txt)]
             nV = counts[1]
             nF = counts[2]
-            vts = Array{VT}(nV)
+            vts = Array{VT}(undef, nV)
             found_counts = true
         end
     end
