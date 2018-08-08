@@ -1,4 +1,3 @@
-__precompile__(true)
 module MeshIO
 
 using GeometryTypes

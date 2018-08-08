@@ -1,4 +1,4 @@
-julia 0.7-alpha
+julia 0.7-rc1
 
 GeometryTypes 0.4
 ColorTypes
