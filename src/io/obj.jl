@@ -4,7 +4,7 @@
 #
 ##############################
 
-function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = GLNormalMesh)
+function load(io::Stream{format"OBJ"}, MeshType::Type{MT} = GLNormalMesh) where {MT <: AbstractMesh}
     Tv,Tn,Tuv,Tf = vertextype(MT), normaltype(MT), texturecoordinatetype(MT), facetype(MT)
     v,n,uv,f     = Tv[], Tn[], Tuv[], Tf[]
     f_uv_n_faces = (f, GLTriangle[], GLTriangle[])
@@ -17,7 +17,7 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
 
         if !startswith(line, "#") && !isempty(line) && !all(iscntrl, line) #ignore comments
             lines   = split(line)
-            command = shift!(lines) #first is the command, rest the data
+            command = popfirst!(lines) #first is the command, rest the data
 
             if "v" == command # mesh always has vertices
                 push!(v, Point{3, Float32}(parse.(Float32, lines))) # should automatically convert to the right type in vertices(mesh)
@@ -32,9 +32,9 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
                     error("Unknown UVW coordinate: $lines")
                 end
             elseif "f" == command #mesh always has faces
-                if any(x->contains(x, "//"), lines)
+                if any(x->occursin("//", x), lines)
                     fs = process_face_normal(lines)
-                elseif any(x->contains(x, "/"), lines)
+                elseif any(x->occursin("/", x), lines)
                     fs = process_face_uv_or_normal(lines)
                 else
                     append!(f, triangulated_faces(Tf, lines))
@@ -87,13 +87,13 @@ function load{MT <: AbstractMesh}(io::Stream{format"OBJ"}, MeshType::Type{MT} = 
 end
 
 # of form "f v1 v2 v3 ....""
-process_face{S <: AbstractString}(lines::Vector{S}) = (lines,) # just put it in the same format as the others
+process_face(lines::Vector{S}) where {S <: AbstractString} = (lines,) # just put it in the same format as the others
 # of form "f v1//vn1 v2//vn2 v3//vn3 ..."
-process_face_normal{S <: AbstractString}(lines::Vector{S}) = split.(lines, "//")
+process_face_normal(lines::Vector{S}) where {S <: AbstractString} = split.(lines, "//")
 # of form "f v1/vt1 v2/vt2 v3/vt3 ..." or of form "f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...."
-process_face_uv_or_normal{S <: AbstractString}(lines::Vector{S}) = split.(lines, '/')
+process_face_uv_or_normal(lines::Vector{S}) where {S <: AbstractString} = split.(lines, Ref('/'))
 
-function triangulated_faces{Tf}(::Type{Tf}, vertex_indices::Vector{<:AbstractString})
+function triangulated_faces(::Type{Tf}, vertex_indices::Vector{<:AbstractString}) where {Tf}
     poly_face = Face{length(vertex_indices), UInt32}(parse.(UInt32, vertex_indices))
     decompose(Tf, poly_face)
 end

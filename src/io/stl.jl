@@ -70,9 +70,9 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     VertexType  = vertextype(MeshType)
     NormalType  = normaltype(MeshType)
 
-    faces       = Array{FaceType}(triangle_count)
-    vertices    = Array{VertexType}(triangle_count*3)
-    normals     = Array{NormalType}(triangle_count*3)
+    faces       = Array{FaceType}(undef, triangle_count)
+    vertices    = Array{VertexType}(undef, triangle_count*3)
+    normals     = Array{NormalType}(undef, triangle_count*3)
     i = 0
     while !eof(io)
         faces[i+1]      = Face{3, ZeroIndex{Int}}(i*3+1, i*3+2, i*3+3)
