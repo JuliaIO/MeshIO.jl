@@ -16,6 +16,7 @@ include("io/ply.jl")
 include("io/stl.jl")
 include("io/obj.jl")
 include("io/2dm.jl")
+include("io/dae.jl")
 
 load(fn::File{format}, MeshType=GLNormalMesh) where {format} = open(fn) do s
     skipmagic(s)
