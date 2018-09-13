@@ -41,6 +41,7 @@ end
             save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.stl"), GLNormalMesh)
             #@test mesh_loaded == mesh
+            mesh_loaded = load(joinpath(tmpdir, "test.stl"), GLPlainMesh)
         end
     end
     @testset "Real world files" begin
