@@ -64,7 +64,6 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
     read(io, 80) # throw out header
-
     triangle_count = read(io, UInt32)
     FaceType    = facetype(MeshType)
     VertexType  = vertextype(MeshType)
@@ -72,13 +71,20 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
 
     faces       = Array{FaceType}(undef, triangle_count)
     vertices    = Array{VertexType}(undef, triangle_count*3)
-    normals     = Array{NormalType}(undef, triangle_count*3)
+    if hasnormals(MeshType)
+        normals     = Array{NormalType}(undef, triangle_count*3)
+    end
     i = 0
     while !eof(io)
         faces[i+1]      = Face{3, ZeroIndex{Int}}(i*3+1, i*3+2, i*3+3)
-        normals[i*3+1]  = NormalType(read(io, Float32), read(io, Float32), read(io, Float32))
-        normals[i*3+2]  = normals[i*3+1] # hurts, but we need per vertex normals
-        normals[i*3+3]  = normals[i*3+1]
+        normal = (read(io, Float32), read(io, Float32), read(io, Float32))
+
+        if hasnormals(MeshType)
+            normals[i*3+1]  = NormalType(normal...)
+            normals[i*3+2]  = normals[i*3+1] # hurts, but we need per vertex normals
+            normals[i*3+3]  = normals[i*3+1]
+        end
+
         vertices[i*3+1] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
         vertices[i*3+2] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
         vertices[i*3+3] = VertexType(read(io, Float32), read(io, Float32), read(io, Float32))
@@ -86,7 +92,12 @@ function load(fs::Stream{format"STL_BINARY"}, MeshType=GLNormalMesh)
         skip(io, 2) # throwout 16bit attribute
         i += 1
     end
-    return MeshType(vertices=vertices, faces=faces, normals=normals)
+
+    if hasnormals(MeshType)
+        return MeshType(vertices=vertices, faces=faces, normals=normals)
+    else
+        return MeshType(vertices=vertices, faces=faces)
+    end
 end
 
 
