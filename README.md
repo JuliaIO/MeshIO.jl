@@ -38,7 +38,7 @@ This has led to some odd seeming design choices.
 First, you can get an attribute via `decompose(::Type{AttributeType}, ::Mesh)`.
 This will try to get this attribute, and if it has the wrong type try to convert it, or if it is not available try to create it.
 So `decompose(Point3{Float32}, mesh)` on a mesh with vertices of type `Point3{Float64}` will return a vector of type `Point3{Float32}`.
-Similarly, if you call `decompose(Normal3{Float32}, mesh)` but the mesh doesn't have normals, it will call the function `normals(mesh.vertices, mesh.faces, Normal3{Float32}`, which will create the normals for the mesh.
+Similarly, if you call `decompose(Normal{3, Float32}, mesh)` but the mesh doesn't have normals, it will call the function `normals(mesh.vertices, mesh.faces, Normal{3, Float32}`, which will create the normals for the mesh.
 As most attributes are independent, this  enables us to easily create all kinds of conversions.
 Also, I can define `decompose` for arbitrary geometric types.
 `decompose{T}(Point3{T}, r::Rectangle)` can actually return the needed vertices for a rectangle.
