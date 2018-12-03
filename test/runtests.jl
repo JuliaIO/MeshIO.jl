@@ -158,6 +158,11 @@ end
             #@test length(vertices(msh)) == 2248
             #@test length(normals(msh)) == 2248
         end
+        @testset "GTS" begin
+            msh = load(joinpath(tf, "sphere5.gts"))
+            @test typeof(msh) == GLNormalMesh
+            test_face_indices(msh)
+        end
     end
 end
 
