@@ -44,3 +44,21 @@ function load( st::Stream{format"GTS"}, MeshType=GLNormalMesh )
     faces = [ FT( union( edges[facets[i][1]], edges[facets[i][2]], edges[facets[i][3]] ) ) for i in 1:length(facets) ]  # orientation not guaranteed
     return MeshType( vertices, faces )
 end
+
+function save( st::Stream{format"GTS"}, mesh::AbstractMesh )
+    # convert faces to edges and facets
+    edges = [[ 0, 0 ]] # TODO
+    facets = [[ 0, 0 ]] # TODO
+    # write to file
+    io = stream( st )
+    println( io, length(mesh.vertices), legth(edges), length(mesh.faces) )
+    for v in mesh.vertices
+        println( io, v[1], v[2], v[3] )
+    end
+    for e in edges
+        println( io, e[1], e[2] )
+    end
+    for f in facets
+        println( io, f[1], f[2], f[3] )
+    end
+end
