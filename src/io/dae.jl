@@ -1,20 +1,9 @@
 using LightXML
 using Base.Iterators: partition
-using Compat
-
-function only(x)
-    state = start(x)
-    @assert !done(x, state)
-    i, state = next(x, state)
-    @assert done(x, state)
-    i
-end
-
-only(x::AbstractArray) = (@assert length(x) == 1; first(x))
 
 function find_source(mesh::XMLElement, source_label::AbstractString)
     @assert source_label[1] == '#'
-    only(filter(get_elements_by_tagname(mesh, "source")) do source
+    first(filter(get_elements_by_tagname(mesh, "source")) do source
         attribute(source, "id") == source_label[2:end]
     end)
 end
@@ -61,7 +50,7 @@ function load(io::Stream{format"DAE"}, MeshType::Type{MT} = GLNormalMesh) where 
     geometry = find_element(find_element(xml, "library_geometries"), "geometry")
     mesh = find_element(geometry, "mesh")
     vertices = find_element(mesh, "vertices")
-    position_input = only(Iterators.filter(child_elements(vertices)) do input
+    position_input = first(Iterators.filter(child_elements(vertices)) do input
         attribute(input, "semantic") == "POSITION"
     end)
     position_source = find_source(mesh, attribute(position_input, "source"))
@@ -71,7 +60,7 @@ function load(io::Stream{format"DAE"}, MeshType::Type{MT} = GLNormalMesh) where 
 
     polylist = find_element(mesh, "polylist")
     semantics = read_polylist(polylist)
-    normal_input = only(Iterators.filter(child_elements(polylist)) do input
+    normal_input = first(Iterators.filter(child_elements(polylist)) do input
         attribute(input, "semantic") == "NORMAL"
     end)
     normal_source = find_source(mesh, attribute(normal_input, "source"))
