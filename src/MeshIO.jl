@@ -6,7 +6,8 @@ using ColorTypes
 using Printf
 import FileIO
 
-import FileIO: DataFormat, @format_str, Stream, File, filename, stream, skipmagic
+import FileIO: DataFormat, @format_str, Stream, File, filename, stream,
+    skipmagic, add_format
 import Base.show
 
 
@@ -16,6 +17,7 @@ include("io/ply.jl")
 include("io/stl.jl")
 include("io/obj.jl")
 include("io/2dm.jl")
+include("io/msh.jl")
 
 load(fn::File{format}, MeshType=GLNormalMesh) where {format} = open(fn) do s
     skipmagic(s)
@@ -23,6 +25,11 @@ load(fn::File{format}, MeshType=GLNormalMesh) where {format} = open(fn) do s
 end
 save(fn::File{format}, msh::AbstractMesh) where {format} = open(fn, "w") do s
     save(s, msh)
+end
+
+function __init__()
+    add_format(format"MSH", (), ".msh")
+    nothing
 end
 
 end # module
