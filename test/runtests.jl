@@ -1,3 +1,4 @@
+using MeshIO
 using FileIO, GeometryTypes
 using Test
 const tf = joinpath(dirname(@__FILE__), "testfiles")
@@ -157,6 +158,13 @@ end
             #@test length(faces(msh)) == 3954
             #@test length(vertices(msh)) == 2248
             #@test length(normals(msh)) == 2248
+        end
+        @testset "GMSH" begin
+            msh = MeshIO.load(File(format"MSH", joinpath(tf, "cube.msh")))
+            @test typeof(msh) == GLNormalMesh
+            @test length(faces(msh)) == 24
+            @test length(vertices(msh)) == 14
+            test_face_indices(msh)
         end
     end
 end
