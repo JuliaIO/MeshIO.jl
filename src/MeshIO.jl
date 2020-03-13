@@ -27,9 +27,4 @@ save(fn::File{format}, msh::AbstractMesh) where {format} = open(fn, "w") do s
     save(s, msh)
 end
 
-function __init__()
-    add_format(format"MSH", (), ".msh")
-    nothing
-end
-
 end # module
