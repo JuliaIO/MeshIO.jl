@@ -159,7 +159,7 @@ end
             #@test length(normals(msh)) == 2248
         end
         @testset "GMSH" begin
-            msh = MeshIO.load(joinpath(tf, "cube.msh"))
+            msh = load(joinpath(tf, "cube.msh"))
             @test typeof(msh) == GLNormalMesh
             @test length(faces(msh)) == 24
             @test length(vertices(msh)) == 14
