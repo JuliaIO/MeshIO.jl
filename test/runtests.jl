@@ -158,6 +158,13 @@ end
             #@test length(vertices(msh)) == 2248
             #@test length(normals(msh)) == 2248
         end
+        @testset "GMSH" begin
+            msh = load(joinpath(tf, "cube.msh"))
+            @test typeof(msh) == GLNormalMesh
+            @test length(faces(msh)) == 24
+            @test length(vertices(msh)) == 14
+            test_face_indices(msh)
+        end
     end
 end
 
