@@ -1,16 +1,15 @@
 module MeshIO
 
-using GeometryTypes
-using GeometryTypes: raw
+using GeometryBasics
 using ColorTypes
 using Printf
 import FileIO
 
-import FileIO: DataFormat, @format_str, Stream, File, filename, stream,
-    skipmagic, add_format
+using GeometryBasics: raw, decompose_normals, simplex_convert
+import FileIO: DataFormat, @format_str, Stream, File, filename, stream
+import FileIO: skipmagic, add_format
+
 import Base.show
-
-
 
 include("io/off.jl")
 include("io/ply.jl")
@@ -19,12 +18,22 @@ include("io/obj.jl")
 include("io/2dm.jl")
 include("io/msh.jl")
 
-load(fn::File{format}, MeshType=GLNormalMesh) where {format} = open(fn) do s
-    skipmagic(s)
-    load(s, MeshType)
+"""
+    load(fn::File{MeshFormat}; pointtype=Point3f0, uvtype=Vec2f0,
+         facetype=GLTriangleFace, normaltype=Vec3f0)
+
+"""
+function load(fn::File{format}; element_types...) where {format}
+    open(fn) do s
+        skipmagic(s)
+        load(s; element_types...)
+    end
 end
-save(fn::File{format}, msh::AbstractMesh) where {format} = open(fn, "w") do s
-    save(s, msh)
+
+function save(fn::File{format}, msh::AbstractMesh) where {format}
+    open(fn, "w") do s
+        save(s, msh)
+    end
 end
 
 end # module
