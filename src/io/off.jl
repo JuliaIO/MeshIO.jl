@@ -58,7 +58,7 @@ function load(st::Stream{format"OFF"}; facetype=GLTriangleFace, pointtype=Point3
             if facelen == 3
                 push!(faces, GLTriangleFace(reinterpret(ZeroIndex{Cuint}, parse.(Cuint, splitted[1:3]))))
             elseif facelen == 4
-                push!(faces, simplex_convert(facetype, QuadFace{Cuint}(reinterpret(ZeroIndex{Cuint}, parse.(Cuint, splitted[1:4]))))...)
+                push!(faces, convert_simplex(facetype, QuadFace{Cuint}(reinterpret(ZeroIndex{Cuint}, parse.(Cuint, splitted[1:4]))))...)
             end
             continue
         elseif !found_counts && all(isdigit, split(txt)[1]) # vertex and face counts

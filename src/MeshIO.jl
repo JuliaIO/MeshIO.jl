@@ -5,7 +5,7 @@ using ColorTypes
 using Printf
 import FileIO
 
-using GeometryBasics: raw, decompose_normals, simplex_convert
+using GeometryBasics: raw, decompose_normals, convert_simplex
 import FileIO: DataFormat, @format_str, Stream, File, filename, stream
 import FileIO: skipmagic, add_format
 

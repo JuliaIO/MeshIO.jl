@@ -89,7 +89,7 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
         if len == 3
             push!(faces, NgonFace{3, faceeltype}(reinterpret(ZeroIndex{Int}, parse.(Int, line)))) # line looks like: "3 0 1 3"
         elseif len == 4
-            push!(faces, simplex_convert(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{Int}, parse.(Int, line))))...) # line looks like: "4 0 1 2 3"
+            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{Int}, parse.(Int, line))))...) # line looks like: "4 0 1 2 3"
         end
     end
 

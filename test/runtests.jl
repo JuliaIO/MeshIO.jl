@@ -21,7 +21,7 @@ end
         FRect3D(Vec3f0(baselen), Vec3f0(baselen, dirlen, baselen)),
         FRect3D(Vec3f0(baselen), Vec3f0(baselen, baselen, dirlen))
     ]
-    mesh = merge(map(gl_triangle_mesh, mesh))
+    mesh = merge(map(triangle_mesh, mesh))
 
     mktempdir() do tmpdir
         for ext in ["2dm", "off"]

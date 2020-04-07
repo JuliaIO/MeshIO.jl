@@ -95,5 +95,5 @@ process_face_uv_or_normal(lines::Vector) = split.(lines, ('/',))
 
 function triangulated_faces(::Type{Tf}, vertex_indices::Vector) where {Tf}
     poly_face = NgonFace{length(vertex_indices), UInt32}(parse.(UInt32, vertex_indices))
-    return simplex_convert(Tf, poly_face)
+    return convert_simplex(Tf, poly_face)
 end

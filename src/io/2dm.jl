@@ -12,7 +12,7 @@ function load(st::Stream{format"2DM"}; facetype=GLTriangleFace, pointtype=Point3
             elseif w[1] == "E3T"
                 push!(faces, GLTriangleFace(parse.(Cuint, w[3:5])))
             elseif w[1] == "E4Q"
-                push!(faces, simplex_convert(facetype, QuadFace{Cuint}(parse.(Cuint, w[3:6])))...)
+                push!(faces, convert_simplex(facetype, QuadFace{Cuint}(parse.(Cuint, w[3:6])))...)
             else
                 continue
             end
