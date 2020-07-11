@@ -65,7 +65,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             # these are not per vertex normals, which we
             # can't deal with at the moment, so we just generate our own!
             if length(points) != length(v_normals)
-                v_normals = normals(points, faces, normaltype)
+                v_normals = normals(points, faces, normaltype=normaltype)
             end
         end
         point_attributes[:normals] = v_normals
