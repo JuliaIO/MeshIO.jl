@@ -55,8 +55,8 @@ function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
 end
 
 
-function load(fs::Stream{format"STL_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f0,
-              normaltype=Vec3f0)
+function load(fs::Stream{format"STL_BINARY"}; facetype=GLTriangleFace,
+              pointtype=Point3f0, normaltype=Vec3f0)
     #Binary STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
@@ -89,14 +89,15 @@ end
 
 
 
-function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace, pointtype=Point3f0,
-              normaltype=Vec3f0, topology=false)
+function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace,
+              pointtype=Point3f0, normaltype=Vec3f0, topology=false)
     #ASCII STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#ASCII_STL
     io = stream(fs)
 
     points = pointtype[]
     faces = facetype[]
+    normals = normaltype[]
 
     vert_count = 0
     vert_idx = [0, 0, 0]
@@ -104,10 +105,11 @@ function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace, pointtype=
     while !eof(io)
         line = split(lowercase(readline(io)))
         if !isempty(line) && line[1] == "facet"
-            #normal = NormalType(line[3:5])
+            normal = normaltype(parse.(eltype(normaltype), line[3:5]))
             readline(io) # Throw away outerloop
             for i in 1:3
-                vertex = pointtype(parse.(eltype(pointtype), split(readline(io))[2:4]))
+                vertex = pointtype(parse.(eltype(pointtype),
+                                   split(readline(io))[2:4]))
                 if topology
                     idx = findfirst(vertices(mesh), vertex)
                 end
@@ -115,6 +117,7 @@ function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace, pointtype=
                     vert_idx[i] = idx
                 else
                     push!(points, vertex)
+                    push!(normals, normal)
                     vert_count += 1
                     vert_idx[i] = vert_count
                 end
@@ -124,5 +127,5 @@ function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace, pointtype=
             push!(faces, TriangleFace{Int}(vert_idx...))
         end
     end
-    return Mesh(points, faces)
+    return Mesh(meta(points; normals=normals), faces)
 end

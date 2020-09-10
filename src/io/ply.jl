@@ -92,6 +92,5 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
             push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{Int}, parse.(Int, line))))...) # line looks like: "4 0 1 2 3"
         end
     end
-
     return Mesh(points, faces)
 end
