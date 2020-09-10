@@ -41,11 +41,10 @@ end
         @testset "STL ascii and binary" begin
             save(File(format"STL_ASCII", joinpath(tmpdir, "test.stl")), mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.stl"))
-            #@test mesh_loaded == mesh
+            @test Set(mesh.position) == Set(mesh_loaded.position)
             save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.stl"))
-            #@test mesh_loaded == mesh
-            mesh_loaded = load(joinpath(tmpdir, "test.stl"))
+            @test Set(mesh.position) == Set(mesh_loaded.position)
         end
     end
     @testset "Real world files" begin
@@ -97,10 +96,8 @@ end
             @test length(faces(msh)) == 36
             @test test_face_indices(msh)
             @test length(coordinates(msh)) == 72
-            @test length(normals(msh)) == 72
-            #msh = load(joinpath(tf, "binary.ply")) # still missing
+            # msh = load(joinpath(tf, "binary.ply")) # still missing
             #@test msh isa GLNormalMesh
-            #println(msh)
             msh = load(joinpath(tf, "cube.ply")) # quads
             @test length(coordinates(msh)) == 24
             @test length(faces(msh)) == 12
@@ -110,13 +107,11 @@ end
             msh = load(joinpath(tf, "test.off"))
             @test length(faces(msh)) == 28
             @test length(coordinates(msh)) == 20
-            @test length(normals(msh)) == 20
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "test2.off"))
             @test length(faces(msh)) == 810
             @test length(coordinates(msh)) == 405
-            @test length(normals(msh)) == 405
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.off"))
