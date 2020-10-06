@@ -22,11 +22,11 @@ function load(st::Stream{format"2DM"}; facetype=GLTriangleFace, pointtype=Point3
 end
 
 function print_face(io::IO, i::Int, f::TriangleFace)
-    println(io, "E3T $i ", join(Int.(f), " "))
+    println(io, "E3T $i ", join(Int.(value.(f)), " "))
 end
 
 function print_face(io::IO, i::Int, f::QuadFace)
-    println(io, "E4Q $i ", join(Int.(f), " "))
+    println(io, "E4Q $i ", join(Int.(value.(f)), " "))
 end
 
 # | Write @Mesh@ to an IOStream
