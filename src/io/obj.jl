@@ -50,40 +50,47 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         end
     end
     point_attributes = Dict{Symbol, Any}()
-    uv_faces = f_uv_n_faces[2]
-    normal_faces = f_uv_n_faces[3]
-    if !isempty(v_normals)
-        if !isempty(normal_faces)
-            normals_remapped = similar(points, eltype(v_normals))
-            for (vf, nf) in zip(faces, normal_faces)
-                for (vidx, nidx) in zip(vf, nf)
-                    normals_remapped[vidx] = v_normals[nidx]
-                end
-            end
-            v_normals = normals_remapped
-        else
-            # these are not per vertex normals, which we
-            # can't deal with at the moment, so we just generate our own!
-            if length(points) != length(v_normals)
-                v_normals = normals(points, faces, normaltype=normaltype)
+
+    non_empty_faces = filter(f -> !isempty(f), f_uv_n_faces)
+    vertices = Vector{NTuple{length(non_empty_faces), eltype(facetype)}}()
+    for (k, fs) in enumerate(zip(non_empty_faces...))
+        f = collect(first(fs)) # position indices
+        for i in 1:3
+            vertex = getindex.(fs, i) # one of each indices (pos/uv/normal)
+            j = findfirst(==(vertex), vertices)
+            if j === nothing
+                push!(vertices, vertex)
+                f[i] = length(vertices)
+            else
+                f[i] = j
             end
         end
-        point_attributes[:normals] = v_normals
+        # remap indices
+        faces[k] = facetype(f)
+    end
+    
+    # remap positions, uvs, normals
+    positions = Vector{pointtype}(undef, length(vertices))
+    if !isempty(v_normals)
+        point_attributes[:normals] = Vector{normaltype}(undef, length(vertices))
     end
     if !isempty(uv)
-        if !isempty(uv_faces)
-            uv_remapped = similar(points, eltype(uv))
-            for (vf, uvf) in zip(faces, uv_faces)
-                for (vidx, uvidx) in zip(vf, uvf)
-                    uv_remapped[vidx] = uv[uvidx]
-                end
-            end
-            uv = uv_remapped
-        end
-        point_attributes[:uv] = uv
+        point_attributes[:uv] = Vector{uvtype}(undef, length(vertices))
     end
 
-    return Mesh(meta(points; point_attributes...), faces)
+    for (i, vertex) in enumerate(vertices)
+        positions[i] = points[first(vertex)]
+        j = 2
+        if !isempty(uv)
+            point_attributes[:uv][i] = uv[vertex[j]]
+            j += 1
+        end
+        if !isempty(v_normals)
+            point_attributes[:normals][i] = v_normals[vertex[j]]
+        end
+    end
+
+    return Mesh(meta(positions; point_attributes...), faces)
 end
 
 # of form "faces v1 v2 v3 ....""
