@@ -51,15 +51,16 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
     end
     point_attributes = Dict{Symbol, Any}()
 
+    N = length(points)
     non_empty_faces = filter(f -> !isempty(f), f_uv_n_faces)
     void = tuple((one(eltype(facetype)) for _ in 1:length(non_empty_faces))...)
-    vertices = fill(void, length(points))
+    vertices = fill(void, N)
 
     if !isempty(v_normals)
-        point_attributes[:normals] = Vector{normaltype}(undef, length(points))
+        point_attributes[:normals] = Vector{normaltype}(undef, N)
     end
     if !isempty(uv)
-        point_attributes[:uv] = Vector{uvtype}(undef, length(points))
+        point_attributes[:uv] = Vector{uvtype}(undef, N)
     end
 
     for (k, fs) in enumerate(zip(non_empty_faces...))
@@ -83,7 +84,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                 # vertex is correct, nothing to replace
                 f[i] = vertex[1]
             else
-                @views j = findfirst(==(vertex), vertices[length(points)+1:end])
+                @views j = findfirst(==(vertex), vertices[N+1:end])
                 if j === nothing
                     # vertex is unique, add it as a new one and adjust
                     # points, uv, normals
@@ -100,7 +101,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                 else
                     # vertex has already been added, adjust face
                     # (points, uv, normals correct because they've been pushed)
-                    f[i] = j + length(points)
+                    f[i] = j + N
                 end
             end
         end
