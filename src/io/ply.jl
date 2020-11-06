@@ -87,10 +87,54 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
         line = split(readline(io))
         len = parse(Int, popfirst!(line))
         if len == 3
-            push!(faces, NgonFace{3, faceeltype}(reinterpret(ZeroIndex{Int}, parse.(Int, line)))) # line looks like: "3 0 1 3"
+            push!(faces, NgonFace{3, faceeltype}(reinterpret(ZeroIndex{UInt32}, parse.(UInt32, line)))) # line looks like: "3 0 1 3"
         elseif len == 4
-            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{Int}, parse.(Int, line))))...) # line looks like: "4 0 1 2 3"
+            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{UInt32}, parse.(UInt32, line))))...) # line looks like: "4 0 1 2 3"
         end
     end
+    return Mesh(points, faces)
+end
+
+function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f0)
+    io = stream(fs)
+    n_points = 0
+    n_faces = 0
+
+    properties = String[]
+
+    # read the header
+    line = readline(io)
+
+    while !startswith(line, "end_header")
+        if startswith(line, "element vertex")
+            n_points = parse(Int, split(line)[3])
+        elseif startswith(line, "element face")
+            n_faces = parse(Int, split(line)[3])
+        elseif startswith(line, "property")
+            push!(properties, line)
+        end
+        line = readline(io)
+    end
+
+    faceeltype = eltype(facetype)
+    points = Array{pointtype}(undef, n_points)
+    #faces = Array{FaceType}(undef, n_faces)
+    faces = facetype[]
+
+    # read the data
+    for i = 1:n_points
+        points[i] = pointtype(read(io, Float32), read(io, Float32), read(io, Float32))
+    end
+
+    for i = 1:n_faces
+        len = read(io, UInt8)
+        indices = reinterpret(ZeroIndex{UInt32}, [ read(io, UInt32) for _ in 1:len ]) 
+        if len == 3
+            push!(faces, NgonFace{3, faceeltype}(indices)) # line looks like: "3 0 1 3"
+        elseif len == 4
+            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(indices))...) # line looks like: "4 0 1 2 3"
+        end
+    end
+
     return Mesh(points, faces)
 end
