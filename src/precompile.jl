@@ -5,6 +5,7 @@ function _precompile_()
     @assert precompile(load, (File{format"OBJ"},))
     @assert precompile(load, (File{format"OFF"},))
     @assert precompile(load, (File{format"PLY_ASCII"},))
+    @assert precompile(load, (File{format"PLY_BINARY"},))
     @assert precompile(load, (File{format"STL_ASCII"},))
     @assert precompile(load, (File{format"STL_BINARY"},))
 end
