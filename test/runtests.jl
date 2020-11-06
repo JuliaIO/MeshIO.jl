@@ -96,8 +96,12 @@ end
             @test length(faces(msh)) == 36
             @test test_face_indices(msh)
             @test length(coordinates(msh)) == 72
-            # msh = load(joinpath(tf, "binary.ply")) # still missing
-            #@test msh isa GLNormalMesh
+
+            msh = load(joinpath(tf, "binary.ply")) 
+            @test length(faces(msh)) == 36
+            @test test_face_indices(msh)
+            @test length(coordinates(msh)) == 72
+
             msh = load(joinpath(tf, "cube.ply")) # quads
             @test length(coordinates(msh)) == 24
             @test length(faces(msh)) == 12
