@@ -24,7 +24,7 @@ This means loading a mesh is as simple as this:
 using FileIO
 mesh = load("path/to/mesh.obj")
 ```
-Displaying a mesh can be achieved with [GLVisualize](https://github.com/JuliaGL/GLVisualize.jl), [Makie](https://github.com/JuliaPlots/Makie.jl) and [ThreeJS](https://github.com/rohitvarkey/ThreeJS.jl/).
+Displaying a mesh can be achieved with [Makie](https://github.com/JuliaPlots/Makie.jl).
 
 Functions for mesh manipulation can be found in [Meshes](https://github.com/JuliaGeometry/Meshes.jl) and [JuliaGeometry](https://github.com/JuliaGeometry)
 
