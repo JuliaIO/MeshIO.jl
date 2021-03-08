@@ -53,7 +53,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
 
     N = length(points)
     non_empty_faces = filter(f -> !isempty(f), f_uv_n_faces)
-    void = tuple((one(eltype(facetype)) for _ in 1:length(non_empty_faces))...)
+    void = tuple((_typemax(eltype(facetype)) for _ in 1:length(non_empty_faces))...)
     vertices = fill(void, N)
 
     if !isempty(v_normals)
@@ -122,4 +122,8 @@ process_face_uv_or_normal(lines::Vector) = split.(lines, ('/',))
 function triangulated_faces(::Type{Tf}, vertex_indices::Vector) where {Tf}
     poly_face = NgonFace{length(vertex_indices), UInt32}(parse.(UInt32, vertex_indices))
     return convert_simplex(Tf, poly_face)
+end
+
+function _typemax(::Type{OffsetInteger{O, T}}) where {O, T}
+    typemax(T)
 end
