@@ -122,8 +122,8 @@ end
         @testset "OBJ" begin
             msh = load(joinpath(tf, "test.obj"))
             @test length(faces(msh)) == 3954
-            @test length(coordinates(msh)) == 2248
-            @test length(normals(msh)) == 2248
+            @test length(coordinates(msh)) == 2520
+            @test length(normals(msh)) == 2520
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.obj")) # quads
