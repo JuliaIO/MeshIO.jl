@@ -49,64 +49,74 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             end
         end
     end
+
     point_attributes = Dict{Symbol, Any}()
-
-    N = length(points)
     non_empty_faces = filter(f -> !isempty(f), f_uv_n_faces)
-    void = tuple((_typemax(eltype(facetype)) for _ in 1:length(non_empty_faces))...)
-    vertices = fill(void, N)
 
-    if !isempty(v_normals)
-        point_attributes[:normals] = Vector{normaltype}(undef, N)
-    end
-    if !isempty(uv)
-        point_attributes[:uv] = Vector{uvtype}(undef, N)
-    end
+    if length(non_empty_faces) > 1
+        N = length(points)
+        void = tuple((_typemax(eltype(facetype)) for _ in 1:length(non_empty_faces))...)
+        vertices = fill(void, N)
 
-    for (k, fs) in enumerate(zip(non_empty_faces...))
-        f = collect(first(fs)) # position indices
-        for i in 1:3
-            l = 2
-            vertex = getindex.(fs, i) # one of each indices (pos/uv/normal)
+        if !isempty(v_normals)
+            point_attributes[:normals] = Vector{normaltype}(undef, N)
+        end
+        if !isempty(uv)
+            point_attributes[:uv] = Vector{uvtype}(undef, N)
+        end
 
-            if vertices[vertex[1]] == void
-                # Replace void
-                vertices[vertex[1]] = vertex
-                f[i] = vertex[1]
-                if !isempty(uv)
-                    point_attributes[:uv][vertex[1]] = uv[vertex[l]]
-                    l += 1
-                end
-                if !isempty(v_normals)
-                    point_attributes[:normals][vertex[1]] = v_normals[vertex[l]]
-                end
-            elseif vertices[vertex[1]] == vertex
-                # vertex is correct, nothing to replace
-                f[i] = vertex[1]
-            else
-                @views j = findfirst(==(vertex), vertices[N+1:end])
-                if j === nothing
-                    # vertex is unique, add it as a new one and adjust
-                    # points, uv, normals
-                    push!(vertices, vertex)
-                    f[i] = length(vertices)
-                    push!(points, points[vertex[1]])
+        for (k, fs) in enumerate(zip(non_empty_faces...))
+            f = collect(first(fs)) # position indices
+            for i in eachindex(non_empty_faces)
+                l = 2
+                vertex = getindex.(fs, i) # one of each indices (pos/uv/normal)
+
+                if vertices[vertex[1]] == void
+                    # Replace void
+                    vertices[vertex[1]] = vertex
+                    f[i] = vertex[1]
                     if !isempty(uv)
-                        push!(point_attributes[:uv], uv[vertex[l]])
+                        point_attributes[:uv][vertex[1]] = uv[vertex[l]]
                         l += 1
                     end
                     if !isempty(v_normals)
-                        push!(point_attributes[:normals], v_normals[vertex[l]])
+                        point_attributes[:normals][vertex[1]] = v_normals[vertex[l]]
                     end
+                elseif vertices[vertex[1]] == vertex
+                    # vertex is correct, nothing to replace
+                    f[i] = vertex[1]
                 else
-                    # vertex has already been added, adjust face
-                    # (points, uv, normals correct because they've been pushed)
-                    f[i] = j + N
+                    @views j = findfirst(==(vertex), vertices[N+1:end])
+                    if j === nothing
+                        # vertex is unique, add it as a new one and adjust
+                        # points, uv, normals
+                        push!(vertices, vertex)
+                        f[i] = length(vertices)
+                        push!(points, points[vertex[1]])
+                        if !isempty(uv)
+                            push!(point_attributes[:uv], uv[vertex[l]])
+                            l += 1
+                        end
+                        if !isempty(v_normals)
+                            push!(point_attributes[:normals], v_normals[vertex[l]])
+                        end
+                    else
+                        # vertex has already been added, adjust face
+                        # (points, uv, normals correct because they've been pushed)
+                        f[i] = j + N
+                    end
                 end
             end
+            # remap indices
+            faces[k] = facetype(f)
         end
-        # remap indices
-        faces[k] = facetype(f)
+    else # we have vertex indexing - no need to remap
+        if !isempty(v_normals)
+            point_attributes[:normals] = v_normals
+        end
+        if !isempty(uv)
+            point_attributes[:uv] = uv
+        end
     end
 
     return Mesh(meta(points; point_attributes...), faces)
