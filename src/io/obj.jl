@@ -137,3 +137,25 @@ end
 function _typemax(::Type{OffsetInteger{O, T}}) where {O, T}
     typemax(T)
 end
+
+function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
+    io = stream(f)
+    for p in decompose(Point3f0, mesh)
+        println(io, "v ", p[1], " ", p[2], " ", p[3])
+    end
+    
+    # TODO
+    # How do you check if normals and uvs are available? decompose generates 
+    # them, but we shouldn't save them if they're not in the mesh
+    for uv in decompose_uv(mesh)
+        println(io, "vt ", uv[1], " ", uv[2])
+    end
+
+    for n in decompose_normals(mesh)
+        println(io, "vn ", n[1], " ", n[2], " ", n[3])
+    end
+
+    for f in decompose(GLTriangleFace, mesh)
+        println(io, "f ", convert(Int, f[1]), " ", convert(Int, f[2]), " ", convert(Int, f[3]))
+    end
+end
