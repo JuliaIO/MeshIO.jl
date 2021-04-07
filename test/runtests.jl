@@ -26,7 +26,7 @@ end
 
 
     mktempdir() do tmpdir
-        for ext in ["2dm", "off"]
+        for ext in ["2dm", "off", "obj"]
             @testset "load save $ext" begin
                 save(joinpath(tmpdir, "test.$ext"), mesh)
                 mesh_loaded = load(joinpath(tmpdir, "test.$ext"))
