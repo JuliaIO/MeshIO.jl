@@ -21,10 +21,12 @@ end
         FRect3D(Vec3f0(baselen), Vec3f0(baselen, dirlen, baselen)),
         FRect3D(Vec3f0(baselen), Vec3f0(baselen, baselen, dirlen))
     ]
+    uvn_mesh = merge(map(uv_normal_mesh, mesh))
     mesh = merge(map(triangle_mesh, mesh))
 
+
     mktempdir() do tmpdir
-        for ext in ["2dm", "off"]
+        for ext in ["2dm", "off", "obj"]
             @testset "load save $ext" begin
                 save(joinpath(tmpdir, "test.$ext"), mesh)
                 mesh_loaded = load(joinpath(tmpdir, "test.$ext"))
@@ -45,6 +47,11 @@ end
             save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.stl"))
             @test Set(mesh.position) == Set(mesh_loaded.position)
+        end
+        @testset "load save OBJ" begin
+            save(joinpath(tmpdir, "test.obj"), uvn_mesh)
+            mesh_loaded = load(joinpath(tmpdir, "test.obj"))
+            @test mesh_loaded == uvn_mesh
         end
     end
     @testset "Real world files" begin
