@@ -5,7 +5,7 @@
 ##############################
 
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
-              pointtype=Point3f0, normaltype=Vec3f0, uvtype=Vec2f0)
+        pointtype=Point3f0, normaltype=Vec3f0, uvtype=Vec2f0)
 
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
     f_uv_n_faces = (faces, GLTriangleFace[], GLTriangleFace[])
@@ -49,38 +49,74 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             end
         end
     end
+
     point_attributes = Dict{Symbol, Any}()
-    uv_faces = f_uv_n_faces[2]
-    normal_faces = f_uv_n_faces[3]
-    if !isempty(v_normals)
-        if !isempty(normal_faces)
-            normals_remapped = similar(points, eltype(v_normals))
-            for (vf, nf) in zip(faces, normal_faces)
-                for (vidx, nidx) in zip(vf, nf)
-                    normals_remapped[vidx] = v_normals[nidx]
+    non_empty_faces = filter(f -> !isempty(f), f_uv_n_faces)
+
+    if length(non_empty_faces) > 1
+        N = length(points)
+        void = tuple((_typemax(eltype(facetype)) for _ in 1:length(non_empty_faces))...)
+        vertices = fill(void, N)
+
+        if !isempty(v_normals)
+            point_attributes[:normals] = Vector{normaltype}(undef, N)
+        end
+        if !isempty(uv)
+            point_attributes[:uv] = Vector{uvtype}(undef, N)
+        end
+
+        for (k, fs) in enumerate(zip(non_empty_faces...))
+            f = collect(first(fs)) # position indices
+            for i in eachindex(non_empty_faces)
+                l = 2
+                vertex = getindex.(fs, i) # one of each indices (pos/uv/normal)
+
+                if vertices[vertex[1]] == void
+                    # Replace void
+                    vertices[vertex[1]] = vertex
+                    f[i] = vertex[1]
+                    if !isempty(uv)
+                        point_attributes[:uv][vertex[1]] = uv[vertex[l]]
+                        l += 1
+                    end
+                    if !isempty(v_normals)
+                        point_attributes[:normals][vertex[1]] = v_normals[vertex[l]]
+                    end
+                elseif vertices[vertex[1]] == vertex
+                    # vertex is correct, nothing to replace
+                    f[i] = vertex[1]
+                else
+                    @views j = findfirst(==(vertex), vertices[N+1:end])
+                    if j === nothing
+                        # vertex is unique, add it as a new one and adjust
+                        # points, uv, normals
+                        push!(vertices, vertex)
+                        f[i] = length(vertices)
+                        push!(points, points[vertex[1]])
+                        if !isempty(uv)
+                            push!(point_attributes[:uv], uv[vertex[l]])
+                            l += 1
+                        end
+                        if !isempty(v_normals)
+                            push!(point_attributes[:normals], v_normals[vertex[l]])
+                        end
+                    else
+                        # vertex has already been added, adjust face
+                        # (points, uv, normals correct because they've been pushed)
+                        f[i] = j + N
+                    end
                 end
             end
-            v_normals = normals_remapped
-        else
-            # these are not per vertex normals, which we
-            # can't deal with at the moment, so we just generate our own!
-            if length(points) != length(v_normals)
-                v_normals = normals(points, faces, normaltype=normaltype)
-            end
+            # remap indices
+            faces[k] = facetype(f)
         end
-        point_attributes[:normals] = v_normals
-    end
-    if !isempty(uv)
-        if !isempty(uv_faces)
-            uv_remapped = similar(points, eltype(uv))
-            for (vf, uvf) in zip(faces, uv_faces)
-                for (vidx, uvidx) in zip(vf, uvf)
-                    uv_remapped[vidx] = uv[uvidx]
-                end
-            end
-            uv = uv_remapped
+    else # we have vertex indexing - no need to remap
+        if !isempty(v_normals)
+            point_attributes[:normals] = v_normals
         end
-        point_attributes[:uv] = uv
+        if !isempty(uv)
+            point_attributes[:uv] = uv
+        end
     end
 
     return Mesh(meta(points; point_attributes...), faces)
@@ -96,4 +132,31 @@ process_face_uv_or_normal(lines::Vector) = split.(lines, ('/',))
 function triangulated_faces(::Type{Tf}, vertex_indices::Vector) where {Tf}
     poly_face = NgonFace{length(vertex_indices), UInt32}(parse.(UInt32, vertex_indices))
     return convert_simplex(Tf, poly_face)
+end
+
+function _typemax(::Type{OffsetInteger{O, T}}) where {O, T}
+    typemax(T)
+end
+
+function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
+    io = stream(f)
+    for p in decompose(Point3f0, mesh)
+        println(io, "v ", p[1], " ", p[2], " ", p[3])
+    end
+
+    if hasproperty(mesh, :uv)
+        for uv in mesh.uv
+            println(io, "vt ", uv[1], " ", uv[2])
+        end
+    end
+
+    if hasproperty(mesh, :normals)
+        for n in decompose_normals(mesh)
+            println(io, "vn ", n[1], " ", n[2], " ", n[3])
+        end
+    end
+
+    for f in decompose(GLTriangleFace, mesh)
+        println(io, "f ", convert(Int, f[1]), " ", convert(Int, f[2]), " ", convert(Int, f[3]))
+    end
 end
