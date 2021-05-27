@@ -8,7 +8,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         pointtype=Point3f0, normaltype=Vec3f0, uvtype=Vec2f0)
 
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
-    f_uv_n_faces = (faces, GLTriangleFace[], GLTriangleFace[])
+    f_uv_n_faces = (faces, facetype[], facetype[])
     last_command = ""
     attrib_type  = nothing
     for full_line in eachline(stream(io))
@@ -155,8 +155,9 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
             println(io, "vn ", n[1], " ", n[2], " ", n[3])
         end
     end
-
-    for f in decompose(GLTriangleFace, mesh)
-        println(io, "f ", convert(Int, f[1]), " ", convert(Int, f[2]), " ", convert(Int, f[3]))
+    
+    F = eltype(faces(mesh))
+    for f in decompose(F, mesh)
+        println(io, "f ", join(convert.(Int, f), " "))
     end
 end
