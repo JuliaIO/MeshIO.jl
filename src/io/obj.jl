@@ -5,7 +5,7 @@
 ##############################
 
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
-        pointtype=Point3f0, normaltype=Vec3f0, uvtype=Vec2f0)
+        pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f)
 
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
     f_uv_n_faces = (faces, GLTriangleFace[], GLTriangleFace[])
@@ -23,12 +23,12 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             if "v" == command # mesh always has vertices
                 push!(points, Point{3, Float32}(parse.(Float32, lines))) # should automatically convert to the right type in vertices(mesh)
             elseif "vn" == command
-                push!(v_normals, Vec3f0(parse.(Float32, lines)))
+                push!(v_normals, Vec3f(parse.(Float32, lines)))
             elseif "vt" == command
                 if length(lines) == 2
-                    push!(uv, Vec2f0(parse.(Float32, lines)))
+                    push!(uv, Vec2f(parse.(Float32, lines)))
                 elseif length(lines) == 3
-                    push!(uv, Vec3f0(parse.(Float32, lines)))
+                    push!(uv, Vec3f(parse.(Float32, lines)))
                 else
                     error("Unknown UVW coordinate: $lines")
                 end
@@ -140,7 +140,7 @@ end
 
 function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
     io = stream(f)
-    for p in decompose(Point3f0, mesh)
+    for p in decompose(Point3f, mesh)
         println(io, "v ", p[1], " ", p[2], " ", p[3])
     end
 

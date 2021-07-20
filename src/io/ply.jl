@@ -52,7 +52,7 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     close(io)
 end
 
-function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=Point3f0)
+function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=Point3f)
     io = stream(fs)
     n_points = 0
     n_faces = 0

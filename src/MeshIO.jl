@@ -19,8 +19,8 @@ include("io/2dm.jl")
 include("io/msh.jl")
 
 """
-    load(fn::File{MeshFormat}; pointtype=Point3f0, uvtype=Vec2f0,
-         facetype=GLTriangleFace, normaltype=Vec3f0)
+    load(fn::File{MeshFormat}; pointtype=Point3f, uvtype=Vec2f,
+         facetype=GLTriangleFace, normaltype=Vec3f)
 
 """
 function load(fn::File{format}; element_types...) where {format}

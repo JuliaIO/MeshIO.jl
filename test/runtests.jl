@@ -17,9 +17,9 @@ end
     dirlen = 1f0
     baselen = 0.02f0
     mesh = [
-        FRect3D(Vec3f0(baselen), Vec3f0(dirlen, baselen, baselen)),
-        FRect3D(Vec3f0(baselen), Vec3f0(baselen, dirlen, baselen)),
-        FRect3D(Vec3f0(baselen), Vec3f0(baselen, baselen, dirlen))
+        Rect3f(Vec3f(baselen), Vec3f(dirlen, baselen, baselen)),
+        Rect3f(Vec3f(baselen), Vec3f(baselen, dirlen, baselen)),
+        Rect3f(Vec3f(baselen), Vec3f(baselen, baselen, dirlen))
     ]
     uvn_mesh = merge(map(uv_normal_mesh, mesh))
     mesh = merge(map(triangle_mesh, mesh))

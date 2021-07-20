@@ -32,7 +32,7 @@ function save(str::Stream{format"OFF"}, msh::AbstractMesh)
     close(io)
 end
 
-function load(st::Stream{format"OFF"}; facetype=GLTriangleFace, pointtype=Point3f0)
+function load(st::Stream{format"OFF"}; facetype=GLTriangleFace, pointtype=Point3f)
     io = stream(st)
     points = pointtype[]
     faces = facetype[] # faces might be triangulated, so we can't assume count
