@@ -1,6 +1,6 @@
 function save(f::Stream{format"STL_ASCII"}, mesh::AbstractMesh)
     io = stream(f)
-    points = decompose(Point3f0, mesh)
+    points = decompose(Point3f, mesh)
     faces = decompose(GLTriangleFace, mesh)
     normals = decompose_normals(mesh)
 
@@ -32,7 +32,7 @@ show(io::IO, ::MIME"model/stl+ascii", mesh::AbstractMesh) = save(io, mesh)
 
 function save(f::Stream{format"STL_BINARY"}, mesh::AbstractMesh)
     io = stream(f)
-    points = decompose(Point3f0, mesh)
+    points = decompose(Point3f, mesh)
     faces = decompose(GLTriangleFace, mesh)
     normals = decompose_normals(mesh)
     n_faces = length(faces)
@@ -56,7 +56,7 @@ end
 
 
 function load(fs::Stream{format"STL_BINARY"}; facetype=GLTriangleFace,
-              pointtype=Point3f0, normaltype=Vec3f0)
+              pointtype=Point3f, normaltype=Vec3f)
     #Binary STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
@@ -90,7 +90,7 @@ end
 
 
 function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace,
-              pointtype=Point3f0, normaltype=Vec3f0, topology=false)
+              pointtype=Point3f, normaltype=Vec3f, topology=false)
     #ASCII STL
     #https://en.wikipedia.org/wiki/STL_%28file_format%29#ASCII_STL
     io = stream(fs)
