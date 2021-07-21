@@ -1,6 +1,6 @@
 @enum MSHBlockType MSHFormatBlock MSHNodesBlock MSHElementsBlock MSHUnknownBlock
 
-function load(fs::Stream{format"MSH"}; facetype=GLTriangleFace, pointtype=Point3f0)
+function load(fs::Stream{format"MSH"}; facetype=GLTriangleFace, pointtype=Point3f)
     #GMSH MSH format (version 4)
     #http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
     io = stream(fs)
