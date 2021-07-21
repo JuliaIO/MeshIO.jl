@@ -1,6 +1,6 @@
-author = "Simon Danisch"
 name = "MeshIO"
 uuid = "7269a6da-0436-5bbc-96c2-40638cbb6118"
+author = "Simon Danisch"
 version = "0.4.7"
 
 [deps]
@@ -12,7 +12,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 [compat]
 ColorTypes = "0.8, 0.9, 0.10, 0.11"
 FileIO = "1.2.4"
-GeometryBasics = "0.3.3"
+GeometryBasics = "0.3.3, 0.4"
 julia = "1.4"
 
 [extras]
