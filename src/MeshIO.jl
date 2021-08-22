@@ -3,11 +3,9 @@ module MeshIO
 using GeometryBasics
 using ColorTypes
 using Printf
-import FileIO
 
 using GeometryBasics: raw, value, decompose_normals, convert_simplex
-import FileIO: DataFormat, @format_str, Stream, File, filename, stream
-import FileIO: skipmagic, add_format
+using FileIO: FileIO, @format_str, Stream, File, stream, skipmagic
 
 import Base.show
 
