@@ -51,7 +51,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
     end
 
     point_attributes = Dict{Symbol, Any}()
-    non_empty_faces = filter(f -> !isempty(f), f_uv_n_faces)
+    non_empty_faces = filtertuple(!isempty, f_uv_n_faces)
 
     if length(non_empty_faces) > 1
         N = length(points)
