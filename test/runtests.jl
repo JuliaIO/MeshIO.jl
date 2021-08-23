@@ -34,17 +34,17 @@ end
             end
         end
         @testset "PLY ascii and binary" begin
-            f = File(format"PLY_ASCII", joinpath(tmpdir, "test.ply"))
+            f = File{format"PLY_ASCII"}(joinpath(tmpdir, "test.ply"))
             save(f, mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.ply"))
             @test mesh_loaded == mesh
-            save(File(format"PLY_BINARY", joinpath(tmpdir, "test.ply")), mesh)
+            save(File{format"PLY_BINARY"}(joinpath(tmpdir, "test.ply")), mesh)
         end
         @testset "STL ascii and binary" begin
-            save(File(format"STL_ASCII", joinpath(tmpdir, "test.stl")), mesh)
+            save(File{format"STL_ASCII"}(joinpath(tmpdir, "test.stl")), mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.stl"))
             @test Set(mesh.position) == Set(mesh_loaded.position)
-            save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), mesh)
+            save(File{format"STL_BINARY"}(joinpath(tmpdir, "test.stl")), mesh)
             mesh_loaded = load(joinpath(tmpdir, "test.stl"))
             @test Set(mesh.position) == Set(mesh_loaded.position)
         end
@@ -71,7 +71,7 @@ end
             @test test_face_indices(msh)
 
             mktempdir() do tmpdir
-                save(File(format"STL_BINARY", joinpath(tmpdir, "test.stl")), msh)
+                save(File{format"STL_BINARY"}(joinpath(tmpdir, "test.stl")), msh)
                 msh1 = load(joinpath(tmpdir, "test.stl"))
                 @test msh1 isa GLNormalMesh
                 @test faces(msh) == faces(msh1)

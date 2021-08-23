@@ -3,11 +3,9 @@ module MeshIO
 using GeometryBasics
 using ColorTypes
 using Printf
-import FileIO
 
 using GeometryBasics: raw, value, decompose_normals, convert_simplex
-import FileIO: DataFormat, @format_str, Stream, File, filename, stream
-import FileIO: skipmagic, add_format
+using FileIO: FileIO, @format_str, Stream, File, stream, skipmagic
 
 import Base.show
 
@@ -39,6 +37,16 @@ end
 if Base.VERSION >= v"1.4.2"
     include("precompile.jl")
     _precompile_()
+end
+
+# `filter(f, ::Tuple)` is not available on Julia 1.3
+# https://github.com/JuliaLang/julia/pull/29259
+function filtertuple(f, xs::Tuple)
+    return @static if VERSION < v"1.4.0-DEV.551"
+        Base.afoldl((ys, x) -> f(x) ? (ys..., x) : ys, (), xs...)
+    else
+        filter(f, xs)
+    end
 end
 
 end # module
