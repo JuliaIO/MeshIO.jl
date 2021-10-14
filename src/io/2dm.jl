@@ -8,7 +8,7 @@ function load(st::Stream{format"2DM"}; facetype=GLTriangleFace, pointtype=Point3
             line = chomp(line)
             w = split(line)
             if w[1] == "ND"
-                push!(vertices, Point3f(parse.(Float32, w[3:end])))
+                push!(vertices, pointtype(parse.(eltype(pointtype), w[3:end])))
             elseif w[1] == "E3T"
                 push!(faces, GLTriangleFace(parse.(Cuint, w[3:5])))
             elseif w[1] == "E4Q"

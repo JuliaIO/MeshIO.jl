@@ -56,7 +56,7 @@ function parse_nodes!(io, nodes, node_tags)
             push!(node_tags, parse(eltype(node_tags), readline(io)))
         end
         for i in 1:nodes_in_block
-            xyz = parse.(Float64, split(readline(io)))
+            xyz = parse.(eltype(eltype(nodes)), split(readline(io)))
             push!(nodes, xyz)
         end
     end
