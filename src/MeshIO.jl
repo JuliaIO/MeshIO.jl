@@ -15,6 +15,7 @@ include("io/stl.jl")
 include("io/obj.jl")
 include("io/2dm.jl")
 include("io/msh.jl")
+include("io/gts.jl")
 
 """
     load(fn::File{MeshFormat}; pointtype=Point3f, uvtype=Vec2f,

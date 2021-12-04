@@ -162,5 +162,11 @@ end
             @test length(coordinates(msh)) == 14
             @test test_face_indices(msh)
         end
+        @testset "GTS" begin
+            # TODO: FileIO upstream
+            #msh = load(joinpath(tf, "sphere5.gts"))
+            #@test typeof(msh) == GLNormalMesh
+            #test_face_indices(msh)
+        end
     end
 end
