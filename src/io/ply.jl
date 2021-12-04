@@ -95,7 +95,7 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
     return Mesh(points, faces)
 end
 
-function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f0)
+function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f)
     io = stream(fs)
     n_points = 0
     n_faces = 0
