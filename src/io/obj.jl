@@ -21,14 +21,14 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             command = popfirst!(lines) #first is the command, rest the data
 
             if "v" == command # mesh always has vertices
-                push!(points, Point{3, Float32}(parse.(Float32, lines))) # should automatically convert to the right type in vertices(mesh)
+                push!(points, pointtype(parse.(eltype(pointtype), lines)))
             elseif "vn" == command
-                push!(v_normals, Vec3f(parse.(Float32, lines)))
+                push!(v_normals, normaltype(parse.(eltype(normaltype), lines)))
             elseif "vt" == command
                 if length(lines) == 2
-                    push!(uv, Vec2f(parse.(Float32, lines)))
+                    push!(uv, Vec{2, eltype(uvtype)}(parse.(eltype(uvtype), lines)))
                 elseif length(lines) == 3
-                    push!(uv, Vec3f(parse.(Float32, lines)))
+                    push!(uv, Vec{3, eltype(uvtype)}(parse.(eltype(uvtype), lines)))
                 else
                     error("Unknown UVW coordinate: $lines")
                 end
