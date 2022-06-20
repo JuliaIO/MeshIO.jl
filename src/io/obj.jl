@@ -119,7 +119,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         end
     end
 
-    return Mesh(meta(points; point_attributes...), faces)
+    return MetaMesh(points, faces; point_attributes...)
 end
 
 # of form "faces v1 v2 v3 ....""
@@ -155,7 +155,7 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
             println(io, "vn ", n[1], " ", n[2], " ", n[3])
         end
     end
-    
+
     F = eltype(faces(mesh))
     for f in decompose(F, mesh)
         println(io, "f ", join(convert.(Int, f), " "))
