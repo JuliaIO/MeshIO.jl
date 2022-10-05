@@ -26,7 +26,7 @@ mesh = load("path/to/mesh.obj")
 ```
 Displaying a mesh can be achieved with [Makie](https://github.com/JuliaPlots/Makie.jl).
 
-Functions for mesh manipulation can be found in [Meshes](https://github.com/JuliaGeometry/Meshes.jl) and [JuliaGeometry](https://github.com/JuliaGeometry)
+Functions for mesh manipulation can be found in [JuliaGeometry](https://github.com/JuliaGeometry)
 
 ## Additional Information
 
