@@ -5,7 +5,7 @@
 ##############################
 
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
-        pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f)
+    pointtype=Point3f, normaltype=Vec3f, uvtype=Any)
 
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
     f_uv_n_faces = (faces, facetype[], facetype[])
@@ -26,9 +26,17 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                 push!(v_normals, normaltype(parse.(eltype(normaltype), lines)))
             elseif "vt" == command
                 if length(lines) == 2
-                    push!(uv, Vec{2, eltype(uvtype)}(parse.(eltype(uvtype), lines)))
+                    if uvtype == Any
+                        uvtype = Vec2f
+                        uv = uvtype[]
+                    end
+                    push!(uv, Vec{2,eltype(uvtype)}(parse.(eltype(uvtype), lines)))
                 elseif length(lines) == 3
-                    push!(uv, Vec{3, eltype(uvtype)}(parse.(eltype(uvtype), lines)))
+                    if uvtype == Any
+                        uvtype = Vec3f
+                        uv = uvtype[]
+                    end
+                    push!(uv, Vec{3,eltype(uvtype)}(parse.(eltype(uvtype), lines)))
                 else
                     error("Unknown UVW coordinate: $lines")
                 end
@@ -155,7 +163,7 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
             println(io, "vn ", n[1], " ", n[2], " ", n[3])
         end
     end
-    
+
     F = eltype(faces(mesh))
     for f in decompose(F, mesh)
         println(io, "f ", join(convert.(Int, f), " "))
