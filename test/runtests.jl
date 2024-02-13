@@ -142,6 +142,10 @@ end
             @test length(coordinates(msh)) == 8
             @test test_face_indices(msh)
 
+            msh = load(joinpath(tf, "cube_uv.obj"))
+            @test typeof(msh.uv) == Vector{Vec{2,Float32}}
+            @test length(msh.uv) == 8            
+
             msh = load(joinpath(tf, "cube_uvw.obj"))
             @test typeof(msh.uv) == Vector{Vec{3,Float32}}
             @test length(msh.uv) == 8
