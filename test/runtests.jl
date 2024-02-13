@@ -14,7 +14,7 @@ function test_face_indices(mesh)
 end
 
 @testset "MeshIO" begin
-    dirlen = 1f0
+    dirlen = 1.0f0
     baselen = 0.02f0
     mesh = [
         Rect3f(Vec3f(baselen), Vec3f(dirlen, baselen, baselen)),
@@ -104,7 +104,7 @@ end
             @test test_face_indices(msh)
             @test length(coordinates(msh)) == 72
 
-            msh = load(joinpath(tf, "binary.ply")) 
+            msh = load(joinpath(tf, "binary.ply"))
             @test length(faces(msh)) == 36
             @test test_face_indices(msh)
             @test length(coordinates(msh)) == 72
@@ -141,6 +141,14 @@ end
             @test length(faces(msh)) == 12
             @test length(coordinates(msh)) == 8
             @test test_face_indices(msh)
+
+            msh = load(joinpath(tf, "cube_uv.obj"))
+            @test typeof(msh.uv) == Vector{Vec{2,Float32}}
+            @test length(msh.uv) == 8            
+
+            msh = load(joinpath(tf, "cube_uvw.obj"))
+            @test typeof(msh.uv) == Vector{Vec{3,Float32}}
+            @test length(msh.uv) == 8
 
             msh = load(joinpath(tf, "polygonal_face.obj"))
             @test length(faces(msh)) == 4
