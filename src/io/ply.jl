@@ -1,6 +1,7 @@
 function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     io = stream(f)
     points = decompose(Point{3, Float32}, msh)
+    point_normals = normals(msh)
     faces = decompose(GLTriangleFace, msh)
 
     n_points = length(points)
@@ -11,12 +12,23 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     write(io, "format binary_little_endian 1.0\n")
     write(io, "element vertex $n_points\n")
     write(io, "property float x\nproperty float y\nproperty float z\n")
+    if !isnothing(point_normals)
+        write(io, "property float nx\nproperty float ny\nproperty float nz\n")
+    end
     write(io, "element face $n_faces\n")
     write(io, "property list uchar int vertex_index\n")
     write(io, "end_header\n")
 
     # write the vertices and faces
-    write(io, points)
+
+    if isnothing(point_normals)
+        write(io, points)
+    else
+        for (v, n) in zip(points, point_normals)
+            write(io, v)
+            write(io, n)
+        end
+    end
 
     for f in faces
         write(io, convert(UInt8, 3))
@@ -28,6 +40,7 @@ end
 function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     io = stream(f)
     points = coordinates(msh)
+    point_normals = normals(msh)
     meshfaces = faces(msh)
 
     n_faces = length(points)
@@ -38,13 +51,22 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     write(io, "format ascii 1.0\n")
     write(io, "element vertex $n_faces\n")
     write(io, "property float x\nproperty float y\nproperty float z\n")
+    if !isnothing(point_normals)
+        write(io, "property float nx\nproperty float ny\nproperty float nz\n")
+    end
     write(io, "element face $n_points\n")
     write(io, "property list uchar int vertex_index\n")
     write(io, "end_header\n")
 
     # write the vertices and faces
-    for v in points
-        println(io, join(Point{3, Float32}(v), " "))
+    if isnothing(point_normals)
+        for v in points
+            println(io, join(Point{3, Float32}(v), " "))
+        end
+    else
+        for (v, n) in zip(points, point_normals)
+            println(io, join([v n], " "))
+        end
     end
     for f in meshfaces
         println(io, length(f), " ", join(raw.(ZeroIndex.(f)), " "))
