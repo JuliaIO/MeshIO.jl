@@ -74,7 +74,7 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     close(io)
 end
 
-function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=Point3f)
+function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=Point3f, normalstype=Vec3f)
     io = stream(fs)
     n_points = 0
     n_faces = 0
@@ -84,9 +84,12 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
     # read the header
     line = readline(io)
 
+    has_normals = false
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
             n_points = parse(Int, split(line)[3])
+        elseif startswith(line, "property float nx")
+            has_normals = true
         elseif startswith(line, "element face")
             n_faces = parse(Int, split(line)[3])
         elseif startswith(line, "property")
@@ -97,12 +100,17 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
 
     faceeltype = eltype(facetype)
     points = Array{pointtype}(undef, n_points)
+    point_normals = Array{normalstype}(undef, n_points)
     #faces = Array{FaceType}(undef, n_faces)
     faces = facetype[]
 
     # read the data
     for i = 1:n_points
-        points[i] = pointtype(parse.(eltype(pointtype), split(readline(io)))) # line looks like: "-0.018 0.038 0.086"
+        numbers = parse.(eltype(pointtype), split(readline(io)))
+        points[i] = pointtype(numbers[1:3])
+        if has_normals && length(numbers) >= 6
+            point_normals[i] = pointtype(numbers[4:6]) 
+        end
     end
 
     for i = 1:n_faces
@@ -114,10 +122,14 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
             push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{UInt32}, parse.(UInt32, line))))...) # line looks like: "4 0 1 2 3"
         end
     end
-    return Mesh(points, faces)
+    if has_normals
+        return Mesh(meta(points; normals=point_normals), faces)
+    else
+        return Mesh(points, faces)
+    end
 end
 
-function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f)
+function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f, normalstype=Vec3f)
     io = stream(fs)
     n_points = 0
     n_faces = 0
@@ -127,9 +139,12 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
     # read the header
     line = readline(io)
 
+    has_normals = false
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
             n_points = parse(Int, split(line)[3])
+        elseif startswith(line, "property float nx")
+            has_normals = true
         elseif startswith(line, "element face")
             n_faces = parse(Int, split(line)[3])
         elseif startswith(line, "property")
@@ -140,12 +155,16 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
 
     faceeltype = eltype(facetype)
     points = Array{pointtype}(undef, n_points)
+    point_normals = Array{normalstype}(undef, n_points)
     #faces = Array{FaceType}(undef, n_faces)
     faces = facetype[]
 
     # read the data
     for i = 1:n_points
         points[i] = pointtype(read(io, Float32), read(io, Float32), read(io, Float32))
+        if has_normals
+            point_normals[i] = normalstype(read(io, Float32), read(io, Float32), read(io, Float32))
+        end
     end
 
     for i = 1:n_faces
@@ -158,5 +177,9 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
         end
     end
 
-    return Mesh(points, faces)
+    if has_normals
+        return Mesh(meta(points; normals=point_normals), faces)
+    else
+        return Mesh(points, faces)
+    end
 end
