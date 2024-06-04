@@ -88,7 +88,7 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
             n_points = parse(Int, split(line)[3])
-        elseif startswith(line, "property float nx")
+        elseif startswith(line, "property float nx") || startswith(line, "property double nx")
             has_normals = true
         elseif startswith(line, "element face")
             n_faces = parse(Int, split(line)[3])
@@ -140,11 +140,29 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
     line = readline(io)
 
     has_normals = false
+    has_doubles = Float32
+    xtype  = Float32; ytype  = Float32;  ztype = Float32
+    nxtype = Float32; nytype = Float32; nztype = Float32
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
             n_points = parse(Int, split(line)[3])
-        elseif startswith(line, "property float nx")
+        elseif startswith(line, "property double x")
+            xtype = Float64
+        elseif startswith(line, "property double y")
+            ytype = Float64
+        elseif startswith(line, "property double z")
+            ztype = Float64
+        elseif startswith(line, "property float n")
             has_normals = true
+        elseif startswith(line, "property double nx")
+            has_normals = true
+            nxtype = Float64
+        elseif startswith(line, "property double ny")
+            has_normals = true
+            nytype = Float64
+        elseif startswith(line, "property double nz")
+            has_normals = true
+            nztype = Float64
         elseif startswith(line, "element face")
             n_faces = parse(Int, split(line)[3])
         elseif startswith(line, "property")
@@ -161,9 +179,9 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
 
     # read the data
     for i = 1:n_points
-        points[i] = pointtype(read(io, Float32), read(io, Float32), read(io, Float32))
+        points[i] = pointtype(read(io, xtype), read(io, ytype), read(io, ztype))
         if has_normals
-            point_normals[i] = normalstype(read(io, Float32), read(io, Float32), read(io, Float32))
+            point_normals[i] = normalstype(read(io, nxtype), read(io, nytype), read(io, nztype))
         end
     end
 
