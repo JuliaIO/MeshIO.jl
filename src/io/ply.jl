@@ -1,11 +1,10 @@
 function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     io = stream(f)
-    points = decompose(Point{3, Float32}, msh)
+    points = coordinates(msh)
     point_normals = normals(msh)
-    faces = decompose(GLTriangleFace, msh)
-
+    meshfaces = faces(msh)
     n_points = length(points)
-    n_faces = length(faces)
+    n_faces = length(meshfaces)
 
     # write the header
     write(io, "ply\n")
@@ -30,9 +29,9 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
         end
     end
 
-    for f in faces
-        write(io, convert(UInt8, 3))
-        write(io, raw.(f)...)
+    for f in meshfaces
+        write(io, convert(UInt8, length(f)))
+        write(io, raw.(ZeroIndex.(f))...)
     end
     close(io)
 end
@@ -42,19 +41,18 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     points = coordinates(msh)
     point_normals = normals(msh)
     meshfaces = faces(msh)
-
-    n_faces = length(points)
-    n_points = length(meshfaces)
+    n_points = length(points)
+    n_faces = length(meshfaces)
 
     # write the header
     write(io, "ply\n")
     write(io, "format ascii 1.0\n")
-    write(io, "element vertex $n_faces\n")
+    write(io, "element vertex $n_points\n")
     write(io, "property float x\nproperty float y\nproperty float z\n")
     if !isnothing(point_normals)
         write(io, "property float nx\nproperty float ny\nproperty float nz\n")
     end
-    write(io, "element face $n_points\n")
+    write(io, "element face $n_faces\n")
     write(io, "property list uchar int vertex_index\n")
     write(io, "end_header\n")
 
