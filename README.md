@@ -68,8 +68,3 @@ function write{M <: Mesh}(msh::M, fn::File{:ply_binary})
 end
   ```
 
-## TODO
-
-1. Port all the other importers/exporters to use the new mesh type and the FileIO API
-2. Include more meshtypes for more exotic formats
-3. Write tests
