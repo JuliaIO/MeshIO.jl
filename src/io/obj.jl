@@ -18,7 +18,9 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
     # end
 
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
-    f_uv_n_faces = (faces, facetype[], facetype[], facetype[])
+    material_faces = facetype[]
+    f_uv_n_faces = (faces, facetype[], facetype[], material_faces)
+
 
     # TODO: Allow GeometryBasics to keep track of this in Mesh?
     material_ids = Int[]
@@ -98,14 +100,9 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                     # find material face buffer and push all the material faces
                     target_N = length(faces)
                     face = facetype(last_material)
-                    for i in 2:4
-                        if length(f_uv_n_faces[i]) < target_N
-                            sizehint!(f_uv_n_faces[i], target_N)
-                            while length(f_uv_n_faces[i]) < target_N
-                                push!(f_uv_n_faces[i], face)
-                            end
-                            break
-                        end
+                    sizehint!(material_faces, target_N)
+                    while length(material_faces) < target_N
+                        push!(material_faces, face)
                     end
                 end
             else
@@ -115,25 +112,14 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
     end
     
     # drop material ids if no materials were specified
-    if material_counter == 1
-        for i in 4:-1:1
-            if !isempty(f_uv_n_faces[i])
-                empty!(f_uv_n_faces[i])
-                break
-            end
-        end
+    if material_counter == 0
         empty!(material_ids)
     else
         face = facetype(current_material)
         target_N = length(faces)
-        for i in 2:4
-            if length(f_uv_n_faces[i]) < target_N
-                sizehint!(f_uv_n_faces[i], target_N)
-                while length(f_uv_n_faces[i]) < target_N
-                    push!(f_uv_n_faces[i], face)
-                end
-                break
-            end
+        sizehint!(material_faces, target_N)
+        while length(material_faces) < target_N
+            push!(material_faces, face)
         end
     end
 
@@ -151,13 +137,24 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         # Update order of vertex attributes
         points = points[attrib_maps[1]]
         counter = 2
+        # With materials we can have merged position-uv-normal faces
+        # but still end up in this branch because of the material index, so
+        # we need to check if the uv/normals faces are set before remapping
         if !isempty(uv)
-            point_attributes[:uv] = uv[attrib_maps[counter]]
-            counter += 1
+            if !isempty(f_uv_n_faces[counter])
+                point_attributes[:uv] = uv[attrib_maps[counter]]
+                counter += 1
+            else
+                point_attributes[:uv] = uv[attrib_maps[counter-1]]
+            end
         end
         if !isempty(v_normals)
-            point_attributes[:normals] = v_normals[attrib_maps[counter]]
-            counter += 1
+            if !isempty(f_uv_n_faces[counter])
+                point_attributes[:normals] = v_normals[attrib_maps[counter]]
+                counter += 1
+            else
+                point_attributes[:normals] = v_normals[attrib_maps[counter-1]]
+            end
         end
         if !isempty(material_ids)
             point_attributes[:material] = material_ids[attrib_maps[counter]]
