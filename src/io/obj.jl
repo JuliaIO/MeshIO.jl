@@ -486,8 +486,9 @@ function parse_texture_info(parent_path::String, lines::Vector{SubString{String}
                 filepath = filepath * ' ' * lines[i]
                 i += 1
             end
-            @info filepath
-            if isfile(filepath)
+            filepath = replace(filepath, "\\\\" => "/")
+            filepath = replace(filepath, "\\" => "/")
+            if isfile(filepath) || endswith(lowercase(filepath), r"\.(png|jpg|jpeg|tiff|bmp)")
                 output["filename"] = filepath
                 idx = i
             else
