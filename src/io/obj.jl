@@ -7,10 +7,25 @@
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
     pointtype=Point3f, normaltype=Vec3f, uvtype=Any)
 
+    # function parse_bool(x, default)
+    #     if lowercase(x) == "off" || x == "0"
+    #         return false
+    #     elseif lowercase(x) == "on" || x == "1"
+    #         return true
+    #     else
+    #         error("Failed to parse $x as Bool.")
+    #     end
+    # end
+
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
-    f_uv_n_faces = (faces, facetype[], facetype[])
-    last_command = ""
-    attrib_type  = nothing
+    f_uv_n_faces = (faces, facetype[], facetype[], facetype[])
+
+    # TODO: Allow GeometryBasics to keep track of this in Mesh?
+    material_ids = Int[]
+    materials = Dict{String, Int}()
+    current_material = 0
+    material_counter = 0
+
     for full_line in eachline(stream(io))
         # read a line, remove newline and leading/trailing whitespaces
         line = strip(chomp(full_line))
@@ -22,8 +37,10 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
 
             if "v" == command # mesh always has vertices
                 push!(points, pointtype(parse.(eltype(pointtype), lines)))
+
             elseif "vn" == command
                 push!(v_normals, normaltype(parse.(eltype(normaltype), lines)))
+
             elseif "vt" == command
                 if length(lines) == 2
                     if uvtype == Any
@@ -40,7 +57,10 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                 else
                     error("Unknown UVW coordinate: $lines")
                 end
+
             elseif "f" == command # mesh always has faces
+                # add material
+
                 if any(x-> occursin("//", x), lines)
                     fs = process_face_normal(lines)
                 elseif any(x-> occursin("/", x), lines)
@@ -52,8 +72,67 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                 for i = 1:length(first(fs))
                     append!(f_uv_n_faces[i], triangulated_faces(facetype, getindex.(fs, i)))
                 end
+            
+            # elseif "s" == command  # Blender sets this just before faces
+            #     shading = parse_bool(lines[1])
+
+            # elseif "o" == command  # Blender sets this before vertices
+            #     object_name = join(lines, ' ')
+
+            # elseif "g" == command
+            #     group_name = join(lines, ' ')
+            
+            # elseif "mtllib" == command
+            #     filename = join(lines, ' ')
+
+            elseif "usemtl" == command # Blender sets this just before faces
+                name = join(lines, ' ')
+                last_material = current_material
+                current_material = get!(materials, name) do 
+                    material_counter += 1
+                end
+                if current_material != last_material
+                    push!(material_ids, current_material)
+                    last_material == 0 && continue # first material
+
+                    # find material face buffer and push all the material faces
+                    target_N = length(faces)
+                    face = facetype(last_material)
+                    for i in 2:4
+                        if length(f_uv_n_faces[i]) < target_N
+                            sizehint!(f_uv_n_faces[i], target_N)
+                            while length(f_uv_n_faces[i]) < target_N
+                                push!(f_uv_n_faces[i], face)
+                            end
+                            break
+                        end
+                    end
+                end
             else
                 #TODO
+            end
+        end
+    end
+    
+    # drop material ids if no materials were specified
+    if material_counter == 1
+        for i in 4:-1:1
+            if !isempty(f_uv_n_faces[i])
+                empty!(f_uv_n_faces[i])
+                break
+            end
+        end
+        empty!(material_ids)
+    else
+        face = facetype(current_material)
+        target_N = length(faces)
+        for i in 2:4
+            if length(f_uv_n_faces[i]) < target_N
+                sizehint!(f_uv_n_faces[i], target_N)
+                while length(f_uv_n_faces[i]) < target_N
+                    push!(f_uv_n_faces[i], face)
+                end
+                break
             end
         end
     end
@@ -78,6 +157,10 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         end
         if !isempty(v_normals)
             point_attributes[:normals] = v_normals[attrib_maps[counter]]
+            counter += 1
+        end
+        if !isempty(material_ids)
+            point_attributes[:material] = material_ids[attrib_maps[counter]]
         end
 
     else # we have vertex indexing - no need to remap
@@ -88,7 +171,10 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         if !isempty(uv)
             point_attributes[:uv] = uv
         end
-        
+        if !isempty(material_ids)
+            point_attributes[:material] = material_ids
+        end
+
     end
 
     return Mesh(meta(points; point_attributes...), faces)
