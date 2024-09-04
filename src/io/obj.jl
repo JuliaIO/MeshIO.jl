@@ -5,10 +5,9 @@
 ##############################
 
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
-    pointtype=Point3f, normaltype=Vec3f, uvtype=Any)
+    pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f)
 
-    points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
-    f_uv_n_faces = (faces, facetype[], facetype[])
+    points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], Any[]
     last_command = ""
     attrib_type  = nothing
     for full_line in eachline(stream(io))
@@ -43,14 +42,22 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             elseif "f" == command # mesh always has faces
                 if any(x-> occursin("//", x), lines)
                     fs = process_face_normal(lines)
+                    pos_faces    = triangulated_faces(facetype, getindex.(fs, 1))
+                    normal_faces = triangulated_faces(facetype, getindex.(fs, 2))
+                    append!(faces, GeometryBasics.NormalFace.(pos_faces, normal_faces))
+
                 elseif any(x-> occursin("/", x), lines)
                     fs = process_face_uv_or_normal(lines)
+                    pos_faces = triangulated_faces(facetype, getindex.(fs, 1))
+                    uv_faces  = triangulated_faces(facetype, getindex.(fs, 2))
+                    if length(fs[1]) == 2
+                        append!(faces, GeometryBasics.UVFace.(pos_faces, uv_faces))
+                    else
+                        normal_faces = triangulated_faces(facetype, getindex.(fs, 3))
+                        append!(faces, GeometryBasics.NormalUVFace.(pos_faces, normal_faces, uv_faces))
+                    end
                 else
                     append!(faces, triangulated_faces(facetype, lines))
-                    continue
-                end
-                for i = 1:length(first(fs))
-                    append!(f_uv_n_faces[i], triangulated_faces(facetype, getindex.(fs, i)))
                 end
             else
                 #TODO
@@ -58,40 +65,22 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         end
     end
 
-    point_attributes = Dict{Symbol, Any}()
-    non_empty_faces = filtertuple(!isempty, f_uv_n_faces)
+    vertex_attributes = Dict{Symbol, Any}()
 
-    # Do we have faces with different indices for positions and normals 
-    # (and texture coordinates) per vertex?
-    if length(non_empty_faces) > 1
-
-        # map vertices with distinct indices for possition and normal (and uv)
-        # to new indices, updating faces along the way
-        faces, attrib_maps = merge_vertex_attribute_indices(non_empty_faces)
-
-        # Update order of vertex attributes
-        points = points[attrib_maps[1]]
-        counter = 2
-        if !isempty(uv)
-            point_attributes[:uv] = uv[attrib_maps[counter]]
-            counter += 1
-        end
-        if !isempty(v_normals)
-            point_attributes[:normals] = v_normals[attrib_maps[counter]]
-        end
-
-    else # we have vertex indexing - no need to remap
-
-        if !isempty(v_normals)
-            point_attributes[:normals] = v_normals
-        end
-        if !isempty(uv)
-            point_attributes[:uv] = uv
-        end
-        
+    # TODO: add GeometryBasics convenience for dropping nothing vertex attributes?
+    if !isempty(v_normals)
+        vertex_attributes[:normal] = v_normals
     end
 
-    return Mesh(meta(points; point_attributes...), faces)
+    if !isempty(uv)
+        vertex_attributes[:uv] = uv
+    end
+
+    # TODO: Can we avoid this conversion?
+    #       Also, is it safe to do? Or can an obj file define different face types for different groups?
+    faces = convert(Vector{typeof(first(faces))}, faces)
+
+    return GeometryBasics.mesh(points, faces, facetype = facetype; vertex_attributes...)
 end
 
 # of form "faces v1 v2 v3 ....""
