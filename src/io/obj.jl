@@ -5,11 +5,10 @@
 ##############################
 
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
-    pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f)
+        pointtype=Point3f, normaltype=Vec3f, uvtype=Any)
 
     points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], Any[]
-    last_command = ""
-    attrib_type  = nothing
+
     for full_line in eachline(stream(io))
         # read a line, remove newline and leading/trailing whitespaces
         line = strip(chomp(full_line))
@@ -54,7 +53,7 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
                         append!(faces, GeometryBasics.UVFace.(pos_faces, uv_faces))
                     else
                         normal_faces = triangulated_faces(facetype, getindex.(fs, 3))
-                        append!(faces, GeometryBasics.NormalUVFace.(pos_faces, normal_faces, uv_faces))
+                        append!(faces, GeometryBasics.UVNormalFace.(pos_faces, uv_faces, normal_faces))
                     end
                 else
                     append!(faces, triangulated_faces(facetype, lines))
@@ -65,22 +64,15 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         end
     end
 
-    vertex_attributes = Dict{Symbol, Any}()
-
-    # TODO: add GeometryBasics convenience for dropping nothing vertex attributes?
-    if !isempty(v_normals)
-        vertex_attributes[:normal] = v_normals
-    end
-
-    if !isempty(uv)
-        vertex_attributes[:uv] = uv
-    end
-
     # TODO: Can we avoid this conversion?
     #       Also, is it safe to do? Or can an obj file define different face types for different groups?
     faces = convert(Vector{typeof(first(faces))}, faces)
 
-    return GeometryBasics.mesh(points, faces, facetype = facetype; vertex_attributes...)
+    return GeometryBasics.mesh(
+        points, faces, facetype = facetype; 
+        uv = isempty(uv) ? nothing : uv, 
+        normal = isempty(v_normals) ? nothing : v_normals
+    )
 end
 
 # of form "faces v1 v2 v3 ....""
@@ -111,7 +103,7 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
         end
     end
 
-    if hasproperty(mesh, :normals)
+    if hasproperty(mesh, :normal)
         for n in decompose_normals(mesh)
             println(io, "vn ", n[1], " ", n[2], " ", n[3])
         end

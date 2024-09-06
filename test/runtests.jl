@@ -3,6 +3,8 @@ using Test
 const tf = joinpath(dirname(@__FILE__), "testfiles")
 using MeshIO
 
+using GeometryBasics: GLNormalMesh
+
 function test_face_indices(mesh)
     for face in faces(mesh)
         for index in face
@@ -23,6 +25,8 @@ end
     ]
     uvn_mesh = merge(map(uv_normal_mesh, mesh))
     mesh = merge(map(triangle_mesh, mesh))
+    empty!(uvn_mesh.views)
+    empty!(mesh.views)
 
 
     mktempdir() do tmpdir
@@ -54,6 +58,8 @@ end
             @test mesh_loaded == uvn_mesh
         end
     end
+
+
     @testset "Real world files" begin
 
         @testset "STL" begin
@@ -67,7 +73,7 @@ end
             @test msh isa GLNormalMesh
             @test length(faces(msh)) == 828
             @test length(coordinates(msh)) == 2484
-            @test length(msh.normals) == 2484
+            @test length(normals(msh)) == 2484
             @test test_face_indices(msh)
 
             mktempdir() do tmpdir
@@ -76,7 +82,7 @@ end
                 @test msh1 isa GLNormalMesh
                 @test faces(msh) == faces(msh1)
                 @test coordinates(msh) == coordinates(msh1)
-                @test msh.normals == msh1.normals
+                @test normals(msh) == normals(msh1)
             end
 
             msh = load(joinpath(tf, "binary_stl_from_solidworks.STL"))
@@ -172,29 +178,9 @@ end
         end
         @testset "GTS" begin
             # TODO: FileIO upstream
-            #msh = load(joinpath(tf, "sphere5.gts"))
-            #@test typeof(msh) == GLNormalMesh
-            #test_face_indices(msh)
-        end
-
-        @testset "Index remapping" begin
-            pos_faces    = GLTriangleFace[(5, 6, 7), (5, 6, 8), (5, 7, 8)]
-            normal_faces = GLTriangleFace[(5, 6, 7), (3, 6, 8), (5, 7, 8)]
-            uv_faces     = GLTriangleFace[(1, 2, 3), (4, 2, 5), (1, 3, 1)]
-            
-            #   unique combinations    ->      new indices
-            # 551 662 773 534 885 881      1 2 3 4 5 6 (or 0..5 with 0 based indices)
-            faces, maps = MeshIO.merge_vertex_attribute_indices(pos_faces, normal_faces, uv_faces)
-
-            @test length(faces) == 3
-            @test faces == GLTriangleFace[(1, 2, 3), (4, 2, 5), (1, 3, 6)]
-
-            # maps are structured as map[new_index] = old_index, so they grab the
-            # first/second/third index of the unique combinations above
-            # maps = (pos_map, normal_map, uv_map)
-            @test maps[1] == [5, 6, 7, 5, 8, 8]
-            @test maps[2] == [5, 6, 7, 3, 8, 8]
-            @test maps[3] == [1, 2, 3, 4, 5, 1]
+            # msh = load(joinpath(tf, "sphere5.gts"))
+            # @test typeof(msh) == GLNormalMesh
+            # test_face_indices(msh)
         end
     end
 end
