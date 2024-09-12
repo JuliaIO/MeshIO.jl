@@ -19,7 +19,7 @@ function load(fs::Stream{format"IFS"}; facetype=GLTriangleFace, pointtype=Point3
     nfaces = read(io, UInt32)
     faces_int = read(io, UInt32, nfaces * 3)
     faces = reinterpret(facetype, faces_int)
-    return GeometryBasics.mesh(vertices = verts, faces = faces)
+    return GeometryBasics.Mesh(verts, faces)
 end
 
 function save(fs::Stream{format"IFS"}, msh::AbstractMesh; meshname = "mesh")

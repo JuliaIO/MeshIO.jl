@@ -3,8 +3,6 @@ using Test
 const tf = joinpath(dirname(@__FILE__), "testfiles")
 using MeshIO
 
-using GeometryBasics: GLNormalMesh
-
 function test_face_indices(mesh)
     for face in faces(mesh)
         for index in face
@@ -23,8 +21,8 @@ end
         Rect3f(Vec3f(baselen), Vec3f(baselen, dirlen, baselen)),
         Rect3f(Vec3f(baselen), Vec3f(baselen, baselen, dirlen))
     ]
-    uvn_mesh = merge(map(uv_normal_mesh, mesh))
-    mesh = merge(map(triangle_mesh, mesh))
+    uvn_mesh = GeometryBasics.clear_faceviews(merge(map(uv_normal_mesh, mesh)))
+    mesh     = GeometryBasics.clear_faceviews(merge(map(triangle_mesh, mesh)))
     empty!(uvn_mesh.views)
     empty!(mesh.views)
 
@@ -70,7 +68,8 @@ end
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "binary.stl"))
-            @test msh isa GLNormalMesh
+            @test msh isa Mesh{D, Float32, GLTriangleFace} where D
+            @test all(v -> v isa AbstractVector, values(vertex_attributes(msh)))
             @test length(faces(msh)) == 828
             @test length(coordinates(msh)) == 2484
             @test length(normals(msh)) == 2484
@@ -79,14 +78,16 @@ end
             mktempdir() do tmpdir
                 save(File{format"STL_BINARY"}(joinpath(tmpdir, "test.stl")), msh)
                 msh1 = load(joinpath(tmpdir, "test.stl"))
-                @test msh1 isa GLNormalMesh
+                @test msh1 isa Mesh{D, Float32, GLTriangleFace} where D
+                @test all(v -> v isa AbstractVector, values(vertex_attributes(msh1)))
                 @test faces(msh) == faces(msh1)
                 @test coordinates(msh) == coordinates(msh1)
                 @test normals(msh) == normals(msh1)
             end
 
             msh = load(joinpath(tf, "binary_stl_from_solidworks.STL"))
-            @test msh isa GLNormalMesh
+            @test msh isa Mesh{D, Float32, GLTriangleFace} where D
+            @test all(v -> v isa AbstractVector, values(vertex_attributes(msh)))
             @test length(faces(msh)) == 12
             @test length(coordinates(msh)) == 36
             @test test_face_indices(msh)
@@ -139,8 +140,9 @@ end
         @testset "OBJ" begin
             msh = load(joinpath(tf, "test.obj"))
             @test length(faces(msh)) == 3954
-            @test length(coordinates(msh)) == 2519
-            @test length(normals(msh)) == 2519
+            @test length(coordinates(msh)) == 2248
+            @test length(normals(msh)) == 2240
+            @test length(texturecoordinates(msh)) == 2220
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.obj")) # quads

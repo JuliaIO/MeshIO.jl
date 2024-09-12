@@ -7,7 +7,8 @@
 function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         pointtype=Point3f, normaltype=Vec3f, uvtype=Any)
 
-    points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], Any[]
+    points, v_normals, uv, faces = pointtype[], normaltype[], uvtype[], facetype[]
+    f_uv_n_faces = (faces, facetype[], facetype[])
 
     for full_line in eachline(stream(io))
         # read a line, remove newline and leading/trailing whitespaces
@@ -41,22 +42,14 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
             elseif "f" == command # mesh always has faces
                 if any(x-> occursin("//", x), lines)
                     fs = process_face_normal(lines)
-                    pos_faces    = triangulated_faces(facetype, getindex.(fs, 1))
-                    normal_faces = triangulated_faces(facetype, getindex.(fs, 2))
-                    append!(faces, GeometryBasics.NormalFace.(pos_faces, normal_faces))
-
                 elseif any(x-> occursin("/", x), lines)
                     fs = process_face_uv_or_normal(lines)
-                    pos_faces = triangulated_faces(facetype, getindex.(fs, 1))
-                    uv_faces  = triangulated_faces(facetype, getindex.(fs, 2))
-                    if length(fs[1]) == 2
-                        append!(faces, GeometryBasics.UVFace.(pos_faces, uv_faces))
-                    else
-                        normal_faces = triangulated_faces(facetype, getindex.(fs, 3))
-                        append!(faces, GeometryBasics.UVNormalFace.(pos_faces, uv_faces, normal_faces))
-                    end
                 else
                     append!(faces, triangulated_faces(facetype, lines))
+                    continue
+                end
+                for i = 1:length(first(fs))
+                    append!(f_uv_n_faces[i], triangulated_faces(facetype, getindex.(fs, i)))
                 end
             else
                 #TODO
@@ -64,9 +57,13 @@ function load(io::Stream{format"OBJ"}; facetype=GLTriangleFace,
         end
     end
 
-    # TODO: Can we avoid this conversion?
-    #       Also, is it safe to do? Or can an obj file define different face types for different groups?
-    faces = convert(Vector{typeof(first(faces))}, faces)
+    if !isempty(f_uv_n_faces[2]) && (f_uv_n_faces[2] != faces)
+        uv = FaceView(uv, f_uv_n_faces[2])
+    end
+    
+    if !isempty(f_uv_n_faces[3]) && (f_uv_n_faces[3] != faces)
+        v_normals = FaceView(v_normals, f_uv_n_faces[3])
+    end
 
     return GeometryBasics.mesh(
         points, faces, facetype = facetype; 
@@ -92,6 +89,11 @@ function _typemax(::Type{OffsetInteger{O, T}}) where {O, T}
 end
 
 function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
+    # TODO: allow saving with faceviews (i.e. build the / or // syntax)
+    if any(v -> v isa FaceView, values(vertex_attributes(mesh)))
+        mesh = GeometryBasics.clear_faceviews(mesh)
+    end
+
     io = stream(f)
     for p in decompose(Point3f, mesh)
         println(io, "v ", p[1], " ", p[2], " ", p[3])
