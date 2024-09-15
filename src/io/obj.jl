@@ -353,11 +353,12 @@ function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String
     return materials
 end
 
+# TODO: Consider generating a ShaderAbstractions Sampler?
 function parse_texture_info(parent_path::String, lines::Vector{SubString{String}})
     idx = 1
     output = Dict{String, Any}()
     name_lookup = Dict(
-        "o" => "origin offset", "s" => "scale", "t" => "turbulence",
+        "o" => "offset", "s" => "scale", "t" => "turbulence",
         "blendu" => "blend horizontal", "blendv" => "blend vertical",
         "boost" => "mipmap sharpness", "bm" => "bump multiplier"
     )
