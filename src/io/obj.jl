@@ -214,59 +214,6 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
 end
 
 
-# Experimental stuff for loading .mtl files and working with multiple materials
-
-"""
-    MehsIO.split_mesh(mesh)
-
-Experimental function for splitting a mesh based material indices.
-Also remaps vertices to avoid passing all vertices with a submesh.
-"""
-function split_mesh(mesh)
-    ps = coordinates(mesh)
-    ns = normals(mesh)
-    uvs = texturecoordinates(mesh)
-    ids = mesh.material
-    fs = faces(mesh)
-
-    meshes = Dict{Int, Any}()
-    target_ids = unique(ids)
-    IndexType = eltype(eltype(fs))
-
-    for target_id in target_ids
-        _fs = eltype(fs)[]
-        indexmap = Dict{UInt32, UInt32}()
-        counter = MeshIO._typemin(IndexType)
-
-        for f in fs
-            if any(ids[f] .== target_id)
-                f = map(f) do _i
-                    i = GeometryBasics.value(_i)
-                    if haskey(indexmap, i)
-                        return indexmap[i]
-                    else
-                        indexmap[i] = counter
-                        counter += 1
-                        return counter-1
-                    end
-                end
-                push!(_fs, f)
-            end
-        end
-
-        indices = Vector{UInt32}(undef, counter-1)
-        for (old, new) in indexmap
-            indices[new] = old
-        end
-
-        meshes[target_id] = GeometryBasics.Mesh(
-            meta(ps[indices], normals = ns[indices], uv = uvs[indices]), _fs
-        )
-    end
-
-    return meshes
-end
-
 function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String)
     endswith(filename, ".mtl") || error("Material Template Library $filename must be a .mtl file.")
     
