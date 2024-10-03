@@ -150,7 +150,7 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
             try
                 _load_mtl!(materials, joinpath(path, filename))
             catch e
-                @error exception = e
+                @error "While parsing $(joinpath(path, filename)):" exception = e
             end
         end
         metadata[:materials] = materials
@@ -280,6 +280,7 @@ function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String
         "Pc" => "clearcoat thickness", "Pcr" => "clearcoat roughness", 
         "Ke" => "emissive", "aniso" => "anisotropy", 
         "anisor" => "anisotropy rotation", 
+        "Tf" => "transmission filter",
         # texture maps
         "map_Ka" => "ambient map",  "map_Kd" => "diffuse map", 
         "map_Ks" => "specular map", "map_Ns" => "shininess map", 
@@ -290,7 +291,7 @@ function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String
         "map_Pr" => "roughness map", "map_Pm" => "metallic map", 
         "map_Ps" => "sheen map", "map_Ke" => "emissive map",
         "map_RMA" => "roughness metalness occlusion map",
-        "map_ORM" => "occlusion roughness metalness map"
+        "map_ORM" => "occlusion roughness metalness map",
     )
 
     path = joinpath(splitpath(filename)[1:end-1])
@@ -318,17 +319,23 @@ function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String
                 elseif command == "Ns" || command == "Ni" || command == "Pr" ||
                         command == "Pm" || command == "Ps" || command == "Pc" ||
                         command == "Pcr" || command == "Ke" || command == "aniso" ||
-                        command == "anisor"
+                        command == "anisor" || command == "Tf"
 
                     material[name_lookup[command]] = parse.(Float32, lines[1])
 
                 elseif command == "d"
-                    haskey(material, "alpha") && error("Material alpha doubly defined.")
-                    material[name_lookup[command]] = parse.(Float32, lines[1])
+                    alpha = parse.(Float32, lines[1])
+                    if haskey(material, "alpha") && !(material["alpha"] ≈ alpha)
+                        @error("Material alpha doubly defined. Overwriting $(material["alpha"]) with $alpha.")
+                    end
+                    material[name_lookup[command]] = alpha
 
                 elseif command == "Tr"
-                    haskey(material, "alpha") && error("Material alpha doubly defined.")
-                    material[name_lookup["d"]] = 1f0 - parse.(Float32, lines[1])
+                    alpha = 1f0 - parse.(Float32, lines[1])
+                    if haskey(material, "alpha") && !(material["alpha"] ≈ alpha)
+                        @error("Material alpha doubly defined. Overwriting $(material["alpha"]) with $alpha")
+                    end
+                    material[name_lookup["d"]] = alpha
 
                 # elseif Tf # transmission filter
 
