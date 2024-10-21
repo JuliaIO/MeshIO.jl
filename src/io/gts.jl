@@ -12,15 +12,13 @@ function parseGtsLine( s::AbstractString, C, T=eltype(C) )
     end
 end
 
-function load( st::Stream{format"GTS"}, MeshType=GLNormalMesh )
+function load( st::Stream{format"GTS"}; facetype=GLTriangleFace, pointtype=Point)
     io = stream(st)
     head = readline( io )
-    FT = facetype(MeshType)
-    VT = vertextype(MeshType)
 
     nVertices, nEdges, nFacets = parseGtsLine( head, Tuple{Int,Int,Int} )
     iV = iE = iF = 1
-    vertices = Vector{VT}(undef, nVertices)
+    vertices = Vector{pointtype}(undef, nVertices)
     edges = Vector{Vector{Int}}(undef, nEdges)
     facets = Vector{Vector{Int}}(undef, nFacets)
     for full_line::String in eachline(io)
@@ -30,7 +28,7 @@ function load( st::Stream{format"GTS"}, MeshType=GLNormalMesh )
 
         if !startswith(line, "#") && !isempty(line) && !all(iscntrl, line) #ignore comments
             if iV <= nVertices
-                vertices[iV] = parseGtsLine( line, VT )
+                vertices[iV] = parseGtsLine( line, pointtype )
                 iV += 1
             elseif iV > nVertices && iE <= nEdges
                 edges[iE] = parseGtsLine( line, Array{Int} )
@@ -41,8 +39,8 @@ function load( st::Stream{format"GTS"}, MeshType=GLNormalMesh )
             end # if
         end # if
     end # for
-    faces = [ FT( union( edges[facets[i][1]], edges[facets[i][2]], edges[facets[i][3]] ) ) for i in 1:length(facets) ]  # orientation not guaranteed
-    return MeshType( vertices, faces )
+    faces = [ facetype( union( edges[facets[i][1]], edges[facets[i][2]], edges[facets[i][3]] ) ) for i in 1:length(facets) ]  # orientation not guaranteed
+    return Mesh( vertices, faces )
 end
 
 function save( st::Stream{format"GTS"}, mesh::AbstractMesh )

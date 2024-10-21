@@ -121,7 +121,7 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
         end
     end
     if has_normals
-        return Mesh(meta(points; normals=point_normals), faces)
+        return Mesh(points, faces; normal = point_normals)
     else
         return Mesh(points, faces)
     end
@@ -194,7 +194,7 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
     end
 
     if has_normals
-        return Mesh(meta(points; normals=point_normals), faces)
+        return Mesh(points, faces; normal = point_normals)
     else
         return Mesh(points, faces)
     end

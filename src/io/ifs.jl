@@ -1,4 +1,4 @@
-function load(fs::Stream{format"IFS"}, MeshType = GLNormalMesh)
+function load(fs::Stream{format"IFS"}; facetype=GLTriangleFace, pointtype=Point3f)
     io = stream(fs)
     function str()
         n = read(io, UInt32)
@@ -11,15 +11,15 @@ function load(fs::Stream{format"IFS"}, MeshType = GLNormalMesh)
     end
     nverts = read(io, UInt32)
     verts_float = read(io, Float32, nverts * 3)
-    verts = reinterpret(Point3f0, verts_float)
+    verts = reinterpret(pointtype, verts_float)
     tris = str()
     if tris != "TRIANGLES\0"
         error("$(filename(fs)) does not seem to be of format IFS")
     end
     nfaces = read(io, UInt32)
     faces_int = read(io, UInt32, nfaces * 3)
-    faces = reinterpret(GLTriangle, faces_int)
-    MeshType(vertices = verts, faces = faces)
+    faces = reinterpret(facetype, faces_int)
+    return GeometryBasics.Mesh(verts, faces)
 end
 
 function save(fs::Stream{format"IFS"}, msh::AbstractMesh; meshname = "mesh")
@@ -29,8 +29,8 @@ function save(fs::Stream{format"IFS"}, msh::AbstractMesh; meshname = "mesh")
         write(io, UInt32(length(s0)))
         write(io, s0)
     end
-    vts = decompose(Point3f0, msh)
-    fcs = decompose(GLTriangle, msh)
+    vts = decompose(Point3f, msh)
+    fcs = decompose(GLTriangleFace, msh)
 
     # write the header
     write0str("IFS")

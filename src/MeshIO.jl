@@ -9,8 +9,6 @@ using FileIO: FileIO, @format_str, Stream, File, stream, skipmagic
 
 import Base.show
 
-include("util.jl")
-
 include("io/off.jl")
 include("io/ply.jl")
 include("io/stl.jl")
