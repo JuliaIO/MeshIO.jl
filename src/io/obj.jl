@@ -248,7 +248,7 @@ function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String
         "map_ORM" => "occlusion roughness metalness map",
     )
 
-    path = joinpath(splitpath(filename)[1:end-1])
+    path = joinpath(splitpath(filename)[1:end-1]...)
     open(filename, "r") do file
 
         # Just so the variable is defined
