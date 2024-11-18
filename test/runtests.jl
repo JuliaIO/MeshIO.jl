@@ -184,5 +184,48 @@ end
             # @test typeof(msh) == GLNormalMesh
             # test_face_indices(msh)
         end
+
+        @testset "Partial Sponza (OBJ)" begin
+            # reduced version of the Sponza model from https://casual-effects.com/data/
+            # Contains one sub-mesh and all materials
+            msh = load(joinpath(tf, "mini sponza/sponza.obj"))
+
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 192
+            @test length(coordinates(msh)) == 150
+            @test length(texturecoordinates(msh)) == 150
+            @test msh.views == [0x00000001:0x000000c0]
+            @test test_face_indices(msh)
+
+            # :groups, :material_names are in sync with views
+            @test haskey(msh, :groups)
+            @test msh[:groups] == ["arcs_floor"]
+            @test haskey(msh, :material_names)
+            @test msh[:material_names] == ["sp_00_luk_mali"]
+
+            # :materials are all of them
+            @test haskey(msh, :materials)
+            material_names = ["sp_01_stup", "sp_svod_kapitel", "sp_vijenac", "sp_00_pod", "sp_02_reljef", "sp_00_vrata_kock", "sp_zid_vani", "sp_00_vrata_krug", "sp_01_stub_baza", "sp_01_stub", "sp_00_luk_mali", "sp_01_stub_kut", "sp_00_svod", "sp_00_luk_mal1", "sp_00_zid", "sp_00_prozor", "sp_01_luk_a", "sp_00_stup", "sp_01_stub_baza_", "sp_01_stup_baza"]
+            @test all(k -> haskey(msh[:materials], k), material_names)
+
+            # Test one explicitly
+            material = msh[:materials]["sp_00_luk_mali"]
+            @test material["refractive index"]    == 1.5
+            @test material["diffuse"]             == Vec3f(0.745098, 0.709804, 0.67451)
+            @test material["transmission filter"] == 1.0
+            @test material["ambient"]             == Vec3f(0.0, 0.0, 0.0)
+            @test material["specular"]            == Vec3f(0.0, 0.0, 0.0)
+            @test material["alpha"]               == 1.0
+            @test material["illumination model"]  == 2
+            @test material["shininess"]           == 50.0
+            @test material["emissive"]            == 0.0
+
+            @test material["bump map"] isa Dict{String, Any}
+            @test material["bump map"]["filename"]    == replace(joinpath(tf, "mini sponza/sp_luk-bump.JPG"), '\\' => '/')
+            @test material["ambient map"] isa Dict{String, Any}
+            @test material["ambient map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
+            @test material["diffuse map"] isa Dict{String, Any}
+            @test material["diffuse map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
+        end
     end
 end
