@@ -191,17 +191,17 @@ end
             msh = load(joinpath(tf, "mini sponza/sponza.obj"))
 
             @test msh isa MetaMesh
-            @test length(faces(msh)) == 192
-            @test length(coordinates(msh)) == 150
-            @test length(texturecoordinates(msh)) == 150
-            @test msh.views == [0x00000001:0x000000c0]
+            @test length(faces(msh)) == 1344
+            @test length(coordinates(msh)) == 1236
+            @test length(texturecoordinates(msh)) == 1236
+            @test msh.views == [0x00000001:0x000000c0, 0x000000c1:0x00000540]
             @test test_face_indices(msh)
 
             # :groups, :material_names are in sync with views
             @test haskey(msh, :groups)
-            @test msh[:groups] == ["arcs_floor"]
+            @test msh[:groups] == ["arcs_floor", "arcs_03"]
             @test haskey(msh, :material_names)
-            @test msh[:material_names] == ["sp_00_luk_mali"]
+            @test msh[:material_names] == ["sp_00_luk_mali", "sp_00_luk_mali"]
 
             # :materials are all of them
             @test haskey(msh, :materials)
