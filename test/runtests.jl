@@ -21,8 +21,8 @@ end
         Rect3f(Vec3f(baselen), Vec3f(baselen, dirlen, baselen)),
         Rect3f(Vec3f(baselen), Vec3f(baselen, baselen, dirlen))
     ]
-    uvn_mesh = GeometryBasics.clear_faceviews(merge(map(uv_normal_mesh, mesh)))
-    mesh     = GeometryBasics.clear_faceviews(merge(map(triangle_mesh, mesh)))
+    uvn_mesh = GeometryBasics.expand_faceviews(merge(map(uv_normal_mesh, mesh)))
+    mesh     = GeometryBasics.expand_faceviews(merge(map(triangle_mesh, mesh)))
     empty!(uvn_mesh.views)
     empty!(mesh.views)
 
@@ -152,7 +152,7 @@ end
 
             msh = load(joinpath(tf, "cube_uv.obj"))
             @test typeof(msh.uv) == Vector{Vec{2,Float32}}
-            @test length(msh.uv) == 8            
+            @test length(msh.uv) == 8
 
             msh = load(joinpath(tf, "cube_uvw.obj"))
             @test typeof(msh.uv) == Vector{Vec{3,Float32}}
