@@ -63,14 +63,16 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
 
                     if any(x-> occursin("//", x), lines)
                         fs = process_face_normal(lines)
+                        append!(f_uv_n_faces[1], triangulated_faces(facetype, getindex.(fs, 1)))
+                        append!(f_uv_n_faces[3], triangulated_faces(facetype, getindex.(fs, 2)))
                     elseif any(x-> occursin("/", x), lines)
                         fs = process_face_uv_or_normal(lines)
+                        for i = 1:length(first(fs))
+                            append!(f_uv_n_faces[i], triangulated_faces(facetype, getindex.(fs, i)))
+                        end
                     else
                         append!(faces, triangulated_faces(facetype, lines))
                         continue
-                    end
-                    for i = 1:length(first(fs))
-                        append!(f_uv_n_faces[i], triangulated_faces(facetype, getindex.(fs, i)))
                     end
 
                 elseif "s" == command  # Blender sets this just before faces
@@ -84,7 +86,7 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
                 elseif "g" == command
                     groups = get!(() -> Dict{Int, String}(), group_meta, :groups)
                     groups[length(faces)+1] = join(lines, ' ')
-                
+
                 elseif "mtllib" == command
                     push!(mtllibs, join(lines, ' '))
 
@@ -105,26 +107,26 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
     if !isempty(f_uv_n_faces[2]) && (f_uv_n_faces[2] != faces)
         uv = FaceView(uv, f_uv_n_faces[2])
     end
-    
+
     if !isempty(f_uv_n_faces[3]) && (f_uv_n_faces[3] != faces)
         v_normals = FaceView(v_normals, f_uv_n_faces[3])
     end
 
     mesh = GeometryBasics.mesh(
-        points, faces, facetype = facetype; 
-        uv = isempty(uv) ? nothing : uv, 
+        points, faces, facetype = facetype;
+        uv = isempty(uv) ? nothing : uv,
         normal = isempty(v_normals) ? nothing : v_normals
     )
 
     if !isempty(group_meta)
-        
+
         # Find all the starting indices used across objects, groups, shadings, materials
         starts_set = Set{Int}()
         for meta in values(group_meta)
             union!(starts_set, keys(meta))
         end
         starts_vec = sort!(collect(starts_set))
-        
+
         # generate views
         resize!(mesh.views, length(starts_vec))
         for i in 1:length(starts_vec)-1
@@ -141,6 +143,10 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
             else
                 metadata[name] = get.(Ref(dict), starts_vec, nothing)
             end
+        end
+
+        if isempty(mtllibs) && !haskey(group_meta, :material_names)
+            return MetaMesh(mesh, metadata)
         end
 
         # Load material files
@@ -223,26 +229,26 @@ end
 
 function _load_mtl!(materials::Dict{String, Dict{String, Any}}, filename::String)
     endswith(filename, ".mtl") || error("Material Template Library $filename must be a .mtl file.")
-    
-    
+
+
     name_lookup = Dict(
         "Ka" => "ambient", "Kd" => "diffuse", "Ks" => "specular",
         "Ns" => "shininess", "d" => "alpha", "Tr" => "transmission", # 1 - alpha
         "Ni" => "refractive index", "illum" => "illumination model",
         # PBR
-        "Pr" => "roughness", "Pm" => "metallic", "Ps" => "sheen", 
-        "Pc" => "clearcoat thickness", "Pcr" => "clearcoat roughness", 
-        "Ke" => "emissive", "aniso" => "anisotropy", 
-        "anisor" => "anisotropy rotation", 
+        "Pr" => "roughness", "Pm" => "metallic", "Ps" => "sheen",
+        "Pc" => "clearcoat thickness", "Pcr" => "clearcoat roughness",
+        "Ke" => "emissive", "aniso" => "anisotropy",
+        "anisor" => "anisotropy rotation",
         "Tf" => "transmission filter",
         # texture maps
-        "map_Ka" => "ambient map",  "map_Kd" => "diffuse map", 
-        "map_Ks" => "specular map", "map_Ns" => "shininess map", 
+        "map_Ka" => "ambient map",  "map_Kd" => "diffuse map",
+        "map_Ks" => "specular map", "map_Ns" => "shininess map",
         "map_d" => "alpha map", "map_Tr" => "transmission map",
         "map_bump" => "bump map", "bump" => "bump map",
         "disp" => "displacement map", "decal" => "decal map",
         "refl" => "reflection map", "norm" => "normal map",
-        "map_Pr" => "roughness map", "map_Pm" => "metallic map", 
+        "map_Pr" => "roughness map", "map_Pm" => "metallic map",
         "map_Ps" => "sheen map", "map_Ke" => "emissive map",
         "map_RMA" => "roughness metalness occlusion map",
         "map_ORM" => "occlusion roughness metalness map",
@@ -346,7 +352,7 @@ function parse_texture_info(parent_path::String, lines::Vector{SubString{String}
             elseif command == "boost" || command == "bm"
                 output[name_lookup[command]] = parse(Float32, lines[idx+1])
                 idx += 2
-                
+
             elseif command == "mm"
                 output["brightness"] = parse(Float32, lines[idx+1])
                 output["contrast"]   = parse(Float32, lines[idx+2])
