@@ -21,8 +21,10 @@ end
         Rect3f(Vec3f(baselen), Vec3f(baselen, dirlen, baselen)),
         Rect3f(Vec3f(baselen), Vec3f(baselen, baselen, dirlen))
     ]
-    uvn_mesh = merge(map(uv_normal_mesh, mesh))
-    mesh = merge(map(triangle_mesh, mesh))
+    uvn_mesh = GeometryBasics.expand_faceviews(merge(map(uv_normal_mesh, mesh)))
+    mesh     = GeometryBasics.expand_faceviews(merge(map(triangle_mesh, mesh)))
+    empty!(uvn_mesh.views)
+    empty!(mesh.views)
 
 
     mktempdir() do tmpdir
@@ -54,6 +56,8 @@ end
             @test mesh_loaded == uvn_mesh
         end
     end
+
+
     @testset "Real world files" begin
 
         @testset "STL" begin
@@ -64,23 +68,26 @@ end
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "binary.stl"))
-            @test msh isa GLNormalMesh
+            @test msh isa Mesh{D, Float32, GLTriangleFace} where D
+            @test all(v -> v isa AbstractVector, values(vertex_attributes(msh)))
             @test length(faces(msh)) == 828
             @test length(coordinates(msh)) == 2484
-            @test length(msh.normals) == 2484
+            @test length(normals(msh)) == 2484
             @test test_face_indices(msh)
 
             mktempdir() do tmpdir
                 save(File{format"STL_BINARY"}(joinpath(tmpdir, "test.stl")), msh)
                 msh1 = load(joinpath(tmpdir, "test.stl"))
-                @test msh1 isa GLNormalMesh
+                @test msh1 isa Mesh{D, Float32, GLTriangleFace} where D
+                @test all(v -> v isa AbstractVector, values(vertex_attributes(msh1)))
                 @test faces(msh) == faces(msh1)
                 @test coordinates(msh) == coordinates(msh1)
-                @test msh.normals == msh1.normals
+                @test normals(msh) == normals(msh1)
             end
 
             msh = load(joinpath(tf, "binary_stl_from_solidworks.STL"))
-            @test msh isa GLNormalMesh
+            @test msh isa Mesh{D, Float32, GLTriangleFace} where D
+            @test all(v -> v isa AbstractVector, values(vertex_attributes(msh)))
             @test length(faces(msh)) == 12
             @test length(coordinates(msh)) == 36
             @test test_face_indices(msh)
@@ -133,8 +140,9 @@ end
         @testset "OBJ" begin
             msh = load(joinpath(tf, "test.obj"))
             @test length(faces(msh)) == 3954
-            @test length(coordinates(msh)) == 2519
-            @test length(normals(msh)) == 2519
+            @test length(coordinates(msh)) == 2248
+            @test length(normals(msh)) == 2240
+            @test length(texturecoordinates(msh)) == 2220
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.obj")) # quads
@@ -144,7 +152,7 @@ end
 
             msh = load(joinpath(tf, "cube_uv.obj"))
             @test typeof(msh.uv) == Vector{Vec{2,Float32}}
-            @test length(msh.uv) == 8            
+            @test length(msh.uv) == 8
 
             msh = load(joinpath(tf, "cube_uvw.obj"))
             @test typeof(msh.uv) == Vector{Vec{3,Float32}}
@@ -172,29 +180,52 @@ end
         end
         @testset "GTS" begin
             # TODO: FileIO upstream
-            #msh = load(joinpath(tf, "sphere5.gts"))
-            #@test typeof(msh) == GLNormalMesh
-            #test_face_indices(msh)
+            # msh = load(joinpath(tf, "sphere5.gts"))
+            # @test typeof(msh) == GLNormalMesh
+            # test_face_indices(msh)
         end
 
-        @testset "Index remapping" begin
-            pos_faces    = GLTriangleFace[(5, 6, 7), (5, 6, 8), (5, 7, 8)]
-            normal_faces = GLTriangleFace[(5, 6, 7), (3, 6, 8), (5, 7, 8)]
-            uv_faces     = GLTriangleFace[(1, 2, 3), (4, 2, 5), (1, 3, 1)]
-            
-            #   unique combinations    ->      new indices
-            # 551 662 773 534 885 881      1 2 3 4 5 6 (or 0..5 with 0 based indices)
-            faces, maps = MeshIO.merge_vertex_attribute_indices(pos_faces, normal_faces, uv_faces)
+        @testset "Partial Sponza (OBJ)" begin
+            # reduced version of the Sponza model from https://casual-effects.com/data/
+            # Contains one sub-mesh and all materials
+            msh = load(joinpath(tf, "mini sponza/sponza.obj"))
 
-            @test length(faces) == 3
-            @test faces == GLTriangleFace[(1, 2, 3), (4, 2, 5), (1, 3, 6)]
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 1344
+            @test length(coordinates(msh)) == 1236
+            @test length(texturecoordinates(msh)) == 1236
+            @test msh.views == [0x00000001:0x000000c0, 0x000000c1:0x00000540]
+            @test test_face_indices(msh)
 
-            # maps are structured as map[new_index] = old_index, so they grab the
-            # first/second/third index of the unique combinations above
-            # maps = (pos_map, normal_map, uv_map)
-            @test maps[1] == [5, 6, 7, 5, 8, 8]
-            @test maps[2] == [5, 6, 7, 3, 8, 8]
-            @test maps[3] == [1, 2, 3, 4, 5, 1]
+            # :groups, :material_names are in sync with views
+            @test haskey(msh, :groups)
+            @test msh[:groups] == ["arcs_floor", "arcs_03"]
+            @test haskey(msh, :material_names)
+            @test msh[:material_names] == ["sp_00_luk_mali", "sp_00_luk_mali"]
+
+            # :materials are all of them
+            @test haskey(msh, :materials)
+            material_names = ["sp_01_stup", "sp_svod_kapitel", "sp_vijenac", "sp_00_pod", "sp_02_reljef", "sp_00_vrata_kock", "sp_zid_vani", "sp_00_vrata_krug", "sp_01_stub_baza", "sp_01_stub", "sp_00_luk_mali", "sp_01_stub_kut", "sp_00_svod", "sp_00_luk_mal1", "sp_00_zid", "sp_00_prozor", "sp_01_luk_a", "sp_00_stup", "sp_01_stub_baza_", "sp_01_stup_baza"]
+            @test all(k -> haskey(msh[:materials], k), material_names)
+
+            # Test one explicitly
+            material = msh[:materials]["sp_00_luk_mali"]
+            @test material["refractive index"]    == 1.5
+            @test material["diffuse"]             == Vec3f(0.745098, 0.709804, 0.67451)
+            @test material["transmission filter"] == 1.0
+            @test material["ambient"]             == Vec3f(0.0, 0.0, 0.0)
+            @test material["specular"]            == Vec3f(0.0, 0.0, 0.0)
+            @test material["alpha"]               == 1.0
+            @test material["illumination model"]  == 2
+            @test material["shininess"]           == 50.0
+            @test material["emissive"]            == 0.0
+
+            @test material["bump map"] isa Dict{String, Any}
+            @test material["bump map"]["filename"]    == replace(joinpath(tf, "mini sponza/sp_luk-bump.JPG"), '\\' => '/')
+            @test material["ambient map"] isa Dict{String, Any}
+            @test material["ambient map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
+            @test material["diffuse map"] isa Dict{String, Any}
+            @test material["diffuse map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
         end
     end
 end

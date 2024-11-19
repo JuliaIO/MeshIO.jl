@@ -84,7 +84,7 @@ function load(fs::Stream{format"STL_BINARY"}; facetype=GLTriangleFace,
         i += 1
     end
 
-    return Mesh(meta(vertices; normals=normals), faces)
+    return Mesh(vertices, faces; normal = normals)
 end
 
 
@@ -127,5 +127,5 @@ function load(fs::Stream{format"STL_ASCII"}; facetype=GLTriangleFace,
             push!(faces, TriangleFace{Int}(vert_idx...))
         end
     end
-    return Mesh(meta(points; normals=normals), faces)
+    return Mesh(points, faces; normal = normals)
 end
