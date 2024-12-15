@@ -30,7 +30,6 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
         for full_line in eachline(stream(io))
             # read a line, remove newline and leading/trailing whitespaces
             line = strip(chomp(full_line))
-            !isascii(line) && error("non valid ascii in obj")
 
             if !startswith(line, "#") && !isempty(line) && !all(iscntrl, line) #ignore comments
                 lines = split(line)
