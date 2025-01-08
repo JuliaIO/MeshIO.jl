@@ -41,7 +41,7 @@ end
 function skip_block!(io)
     while true
         line = readline(io)
-        if line[1:4] == "\$End"
+        if length(line) >= 4 && line[1:4] == "\$End"
             break
         end
     end
