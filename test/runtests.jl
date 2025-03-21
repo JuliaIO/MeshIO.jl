@@ -170,7 +170,7 @@ end
             @test typeof(msh.uv) == Vector{Vec{2,Float32}}
             @test length(msh.uv) == 8
 
-            msh = load(joinpath(tf, "cube_uvw.obj"))
+            msh = Mesh(load(joinpath(tf, "cube_uvw.obj")))
             @test typeof(msh.uv) == Vector{Vec{3,Float32}}
             @test length(msh.uv) == 8
 
@@ -182,7 +182,28 @@ end
             msh = load(joinpath(tf, "test_face_normal.obj"))
             @test length(faces(msh)) == 1
             @test length(coordinates(msh)) == 3
+            @test length(normals(msh)) == 3
             @test test_face_indices(msh)
+            @test normals(msh) isa FaceView
+
+            # test correctness of reordered vertices
+            msh2 = expand_faceviews(msh)
+            @test !(normals(msh2) isa FaceView)
+            @test length(faces(msh2)) == 1
+            @test coordinates(coordinates(msh2)[faces(msh2)[1]]) == (Vec3f(0), Vec3f(0.062805, 0.591207, 0.902102), Vec3f(0.058382, 0.577691, 0.904429))
+            @test normals(msh2)[faces(msh2)[1]] == (Vec3f(0.9134, 0.104, 0.3934), Vec3f(0.8079, 0.4428, 0.3887), Vec3f(0.8943, 0.4474, 0.0))
+
+            # test that save works with FaceViews
+            mktempdir() do tmpdir
+                save(joinpath(tmpdir, "test.obj"), msh)
+                msh1 = load(joinpath(tmpdir, "test.obj"))
+                msh3 = expand_faceviews(msh1) # should be unnecessary atm
+                @test length(faces(msh2)) == length(faces(msh3))
+                for (f1, f2) in zip(faces(msh2), faces(msh3))
+                    @test coordinates(msh2)[f1] == coordinates(msh3)[f2]
+                    @test normals(msh2)[f1] == normals(msh3)[f2]
+                end
+            end
         end
         @testset "2DM" begin
             msh = load(joinpath(tf, "test.2dm"))
