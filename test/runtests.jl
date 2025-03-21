@@ -166,11 +166,11 @@ end
                 @test msh[:materials]["Material"]["ambient"]            === Vec3f(0.0, 0.0, 0.0)
             end
 
-            msh = Mesh(load(joinpath(tf, "cube_uv.obj")))
+            msh = load(joinpath(tf, "cube_uv.obj"))
             @test typeof(msh.uv) == Vector{Vec{2,Float32}}
             @test length(msh.uv) == 8
 
-            msh = Mesh(load(joinpath(tf, "cube_uvw.obj")))
+            msh = load(joinpath(tf, "cube_uvw.obj"))
             @test typeof(msh.uv) == Vector{Vec{3,Float32}}
             @test length(msh.uv) == 8
 
@@ -187,7 +187,7 @@ end
             @test normals(msh) isa FaceView
 
             # test correctness of reordered vertices
-            msh2 = expand_faceviews(msh)
+            msh2 = expand_faceviews(Mesh(msh))
             @test !(normals(msh2) isa FaceView)
             @test length(faces(msh2)) == 1
             @test coordinates(coordinates(msh2)[faces(msh2)[1]]) == (Vec3f(0), Vec3f(0.062805, 0.591207, 0.902102), Vec3f(0.058382, 0.577691, 0.904429))
@@ -197,7 +197,7 @@ end
             mktempdir() do tmpdir
                 save(joinpath(tmpdir, "test.obj"), msh)
                 msh1 = load(joinpath(tmpdir, "test.obj"))
-                msh3 = expand_faceviews(msh1) # should be unnecessary atm
+                msh3 = expand_faceviews(Mesh(msh1)) # should be unnecessary atm
                 @test length(faces(msh2)) == length(faces(msh3))
                 for (f1, f2) in zip(faces(msh2), faces(msh3))
                     @test coordinates(msh2)[f1] == coordinates(msh3)[f2]
