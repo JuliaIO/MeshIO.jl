@@ -146,11 +146,27 @@ end
             @test test_face_indices(msh)
 
             msh = load(joinpath(tf, "cube.obj")) # quads
+            @test msh isa MetaMesh
             @test length(faces(msh)) == 12
             @test length(coordinates(msh)) == 8
             @test test_face_indices(msh)
 
-            msh = load(joinpath(tf, "cube_uv.obj"))
+            @testset "OBJ meta and mtl data" begin
+                @test msh[:material_names] == ["Material"]
+                @test msh[:shading] == BitVector([0])
+                @test msh[:object] == ["Cube"]
+                @test length(msh[:materials]) == 1
+                @test length(msh[:materials]["Material"]) == 7
+                @test msh[:materials]["Material"]["refractive index"]   === 1f0
+                @test msh[:materials]["Material"]["illumination model"] === 2
+                @test msh[:materials]["Material"]["alpha"]              === 1f0
+                @test msh[:materials]["Material"]["diffuse"]            === Vec3f(0.64, 0.64, 0.64)
+                @test msh[:materials]["Material"]["specular"]           === Vec3f(0.5, 0.5, 0.5)
+                @test msh[:materials]["Material"]["shininess"]          === 96.07843f0
+                @test msh[:materials]["Material"]["ambient"]            === Vec3f(0.0, 0.0, 0.0)
+            end
+
+            msh = Mesh(load(joinpath(tf, "cube_uv.obj")))
             @test typeof(msh.uv) == Vector{Vec{2,Float32}}
             @test length(msh.uv) == 8
 
