@@ -199,7 +199,7 @@ end
 function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
     # TODO: allow saving with faceviews (i.e. build the / or // syntax)
     if any(v -> v isa FaceView, values(vertex_attributes(mesh)))
-        mesh = GeometryBasics.clear_faceviews(mesh)
+        mesh = GeometryBasics.expand_faceviews(mesh)
     end
 
     io = stream(f)
