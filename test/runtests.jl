@@ -333,6 +333,18 @@ end
                     @test coordinates(msh2)[f1] == coordinates(msh3)[f2]
                     @test normals(msh2)[f1] == normals(msh3)[f2]
                 end
+
+                valid_msh = load(joinpath(tf, "cube_uv.obj"))
+                save(joinpath(tmpdir, "cube_uv.obj"), valid_msh)
+                saved_msh = load(joinpath(tmpdir, "cube_uv.obj"))
+                @test typeof(saved_msh.uv) == typeof(valid_msh.uv)
+                @test length(saved_msh.uv) == length(valid_msh.uv)
+
+                valid_msh = load(joinpath(tf, "cube_uvw.obj"))
+                save(joinpath(tmpdir, "cube_uvw.obj"), valid_msh)
+                saved_msh = load(joinpath(tmpdir, "cube_uvw.obj"))
+                @test typeof(saved_msh.uv) == typeof(valid_msh.uv)
+                @test length(saved_msh.uv) == length(valid_msh.uv)
             end
         end
         @testset "2DM" begin
