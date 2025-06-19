@@ -209,7 +209,9 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
 
     if hasproperty(mesh, :uv)
         for uv in mesh.uv
-            println(io, "vt ", uv[1], " ", uv[2])
+            # vt *u* v w
+            # Only *u* is required in vt
+            println(io, "vt ", join(uv[begin:min(length(uv), 3)], " "))
         end
     end
 
