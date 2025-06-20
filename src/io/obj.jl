@@ -223,7 +223,23 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
 
     F = eltype(faces(mesh))
     for f in decompose(F, mesh)
-        println(io, "f ", join(convert.(Int, f), " "))
+        print(io, "f", )
+        for p in convert.(Int, f)
+            print(io, " ")
+            print(io, p)
+            if hasproperty(mesh, :uv)
+                # f v/vt
+                print(io, "/", p)
+            elseif hasproperty(mesh, :normal)
+                # f v/
+                print(io, "/")
+            end
+            if hasproperty(mesh, :normal)
+                # f v/vt/vn OR f v//vn
+                print(io, "/", p)
+            end
+        end
+        println(io)
     end
 end
 
