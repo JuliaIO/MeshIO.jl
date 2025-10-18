@@ -19,6 +19,13 @@ include("io/gts.jl")
 include("io/ifs.jl")
 include("io/nas.jl")
 
+# Register NAS format with FileIO for automatic detection by extension
+# Since NAS has no magic header, we use empty magic bytes
+FileIO.add_format(:NAS, UInt8[], ".nas")
+
+
+# Add a convenience function for loading NAS files with the same interface as other formats
+
 """
     load(fn::File{MeshFormat}; pointtype=Point3f, uvtype=Vec2f,
          facetype=GLTriangleFace, normaltype=Vec3f)
@@ -26,7 +33,10 @@ include("io/nas.jl")
 """
 function load(fn::File{format}; element_types...) where {format}
     open(fn) do s
-        skipmagic(s)
+        # NAS format has no magic header, so skip skipmagic for it
+        if format != format"NAS"
+            skipmagic(s)
+        end
         load(s; element_types...)
     end
 end

@@ -230,7 +230,7 @@ end
                 tri_mesh = Mesh(tri_coords, tri_faces)
                 tri_path = joinpath(tmpdir, "tri.nas")
                 MeshIO.save(File{format"NAS"}(tri_path), tri_mesh)
-                tri_loaded, _meta = open(File{format"NAS"}(tri_path)) do s; MeshIO.load(s); end
+                tri_loaded = open(File{format"NAS"}(tri_path)) do s; MeshIO.load(s); end
                 @test length(coordinates(tri_loaded)) == 3
                 @test length(faces(tri_loaded)) == 1
                 @test Set(coordinates(tri_loaded)) == Set(tri_coords)
@@ -241,7 +241,7 @@ end
                 quad_mesh = Mesh(quad_coords, quad_faces)
                 quad_path = joinpath(tmpdir, "quad.nas")
                 MeshIO.save(File{format"NAS"}(quad_path), quad_mesh)
-                quad_loaded, _metaq = open(File{format"NAS"}(quad_path)) do s; MeshIO.load(s; facetype=QuadFace{Int}); end
+                quad_loaded = open(File{format"NAS"}(quad_path)) do s; MeshIO.load(s; facetype=QuadFace{Int}); end
                 @test length(coordinates(quad_loaded)) == 4
                 @test length(faces(quad_loaded)) == 1
                 @test Set(coordinates(quad_loaded)) == Set(quad_coords)
@@ -267,16 +267,30 @@ end
                     println(io, small_card("CTETRA", ["1", "1", "1", "2", "3", "4"]))
                     println(io, "ENDDATA")
                 end
-                tet_loaded, _metat = open(File{format"NAS"}(tet_path)) do s; MeshIO.load(s); end
+                tet_loaded = open(File{format"NAS"}(tet_path)) do s; MeshIO.load(s); end
                 @test length(coordinates(tet_loaded)) == 4
                 # Default facetype is GLTriangleFace; CTETRA expands surface: 4 triangles
                 @test length(faces(tet_loaded)) == 4
             end
             # Real-world style file with small-field style cards
-            msh, _metacube = open(File{format"NAS"}(joinpath(tf, "cube.nas"))) do s; MeshIO.load(s); end
+            msh = open(File{format"NAS"}(joinpath(tf, "cube.nas"))) do s; MeshIO.load(s); end
             @test length(coordinates(msh)) == 8
             @test length(faces(msh)) == 12
             @test test_face_indices(msh)
+
+            # 4) Test simplified NAS loader returns only Mesh (like other formats)
+            msh2 = open(File{format"NAS"}(joinpath(tf, "cube.nas"))) do s; MeshIO.load(s); end
+            @test length(coordinates(msh2)) == length(coordinates(msh))
+            @test length(faces(msh2)) == length(faces(msh))
+            @test coordinates(msh2) == coordinates(msh)
+            @test faces(msh2) == faces(msh)
+
+            # 5) Test simplified NAS loader with different types
+            msh3 = open(File{format"NAS"}(joinpath(tf, "cube.nas"))) do s; MeshIO.load(s; pointtype=Point3d, facetype=TriangleFace{Int}); end
+            @test length(coordinates(msh3)) == 8
+            @test length(faces(msh3)) == 12
+            @test eltype(coordinates(msh3)) == Point3d
+            @test eltype(faces(msh3)) == TriangleFace{Int}
         end
 
         @testset "Partial Sponza (OBJ)" begin
