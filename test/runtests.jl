@@ -190,8 +190,8 @@ end
             msh2 = expand_faceviews(Mesh(msh))
             @test !(normals(msh2) isa FaceView)
             @test length(faces(msh2)) == 1
-            @test coordinates(coordinates(msh2)[faces(msh2)[1]]) == (Vec3f(0), Vec3f(0.062805, 0.591207, 0.902102), Vec3f(0.058382, 0.577691, 0.904429))
-            @test normals(msh2)[faces(msh2)[1]] == (Vec3f(0.9134, 0.104, 0.3934), Vec3f(0.8079, 0.4428, 0.3887), Vec3f(0.8943, 0.4474, 0.0))
+            @test coordinates(coordinates(msh2)[faces(msh2)[1]]) == [Vec3f(0), Vec3f(0.062805, 0.591207, 0.902102), Vec3f(0.058382, 0.577691, 0.904429)]
+            @test normals(msh2)[faces(msh2)[1]] == [Vec3f(0.9134, 0.104, 0.3934), Vec3f(0.8079, 0.4428, 0.3887), Vec3f(0.8943, 0.4474, 0.0)]
 
             # test that save works with FaceViews
             mktempdir() do tmpdir
@@ -220,6 +220,63 @@ end
             # msh = load(joinpath(tf, "sphere5.gts"))
             # @test typeof(msh) == GLNormalMesh
             # test_face_indices(msh)
+        end
+
+        @testset "NAS (Nastran)" begin
+            mktempdir() do tmpdir
+                # 1) CTRIA3 round-trip (free-field)
+                tri_coords = [Point3f(0,0,0), Point3f(1,0,0), Point3f(0,1,0)]
+                tri_faces = [TriangleFace(1,2,3)]
+                tri_mesh = Mesh(tri_coords, tri_faces)
+                tri_path = joinpath(tmpdir, "tri.nas")
+                MeshIO.save(File{format"NAS"}(tri_path), tri_mesh)
+                tri_loaded, _meta = open(File{format"NAS"}(tri_path)) do s; MeshIO.load(s); end
+                @test length(coordinates(tri_loaded)) == 3
+                @test length(faces(tri_loaded)) == 1
+                @test Set(coordinates(tri_loaded)) == Set(tri_coords)
+
+                # 2) CQUAD4 round-trip (free-field) — load as quads explicitly
+                quad_coords = [Point3f(0,0,0), Point3f(1,0,0), Point3f(1,1,0), Point3f(0,1,0)]
+                quad_faces = [QuadFace(1,2,3,4)]
+                quad_mesh = Mesh(quad_coords, quad_faces)
+                quad_path = joinpath(tmpdir, "quad.nas")
+                MeshIO.save(File{format"NAS"}(quad_path), quad_mesh)
+                quad_loaded, _metaq = open(File{format"NAS"}(quad_path)) do s; MeshIO.load(s; facetype=QuadFace{Int}); end
+                @test length(coordinates(quad_loaded)) == 4
+                @test length(faces(quad_loaded)) == 1
+                @test Set(coordinates(quad_loaded)) == Set(quad_coords)
+                @test faces(quad_loaded)[1] == QuadFace{Int}(1,2,3,4)
+
+                # 3) CTETRA load (small-field, fixed-width) — expands to 4 triangles
+                function small_card(name::AbstractString, fields::Vector{String})
+                    # Build small-field line: 10 fields of 8 chars; we only need first line
+                    cols = [rpad(name, 8)]
+                    append!(cols, [rpad(f,8) for f in fields])
+                    return join(cols)
+                end
+                tet_path = joinpath(tmpdir, "tet_smalls.nas")
+                open(tet_path, "w") do io
+                    println(io, "CEND")
+                    println(io, "BEGIN BULK")
+                    # GRID entries: IDs 1..4
+                    println(io, small_card("GRID", ["1", "", "0.0", "0.0", "0.0"]))
+                    println(io, small_card("GRID", ["2", "", "1.0", "0.0", "0.0"]))
+                    println(io, small_card("GRID", ["3", "", "0.0", "1.0", "0.0"]))
+                    println(io, small_card("GRID", ["4", "", "0.0", "0.0", "1.0"]))
+                    # CTETRA EID=1, PID=1, nodes 1 2 3 4
+                    println(io, small_card("CTETRA", ["1", "1", "1", "2", "3", "4"]))
+                    println(io, "ENDDATA")
+                end
+                tet_loaded, _metat = open(File{format"NAS"}(tet_path)) do s; MeshIO.load(s); end
+                @test length(coordinates(tet_loaded)) == 4
+                # Default facetype is GLTriangleFace; CTETRA expands surface: 4 triangles
+                @test length(faces(tet_loaded)) == 4
+            end
+            # Real-world style file with small-field style cards
+            msh, _metacube = open(File{format"NAS"}(joinpath(tf, "cube.nas"))) do s; MeshIO.load(s); end
+            @test length(coordinates(msh)) == 8
+            @test length(faces(msh)) == 12
+            @test test_face_indices(msh)
         end
 
         @testset "Partial Sponza (OBJ)" begin

@@ -2,3 +2,6 @@
 *.jl.mem
 Manifest.toml
 *.db
+.vscode/
+.DS_Store
+*.md
