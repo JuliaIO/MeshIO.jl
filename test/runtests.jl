@@ -190,8 +190,8 @@ end
             msh2 = expand_faceviews(Mesh(msh))
             @test !(normals(msh2) isa FaceView)
             @test length(faces(msh2)) == 1
-            @test coordinates(coordinates(msh2)[faces(msh2)[1]]) == (Vec3f(0), Vec3f(0.062805, 0.591207, 0.902102), Vec3f(0.058382, 0.577691, 0.904429))
-            @test normals(msh2)[faces(msh2)[1]] == (Vec3f(0.9134, 0.104, 0.3934), Vec3f(0.8079, 0.4428, 0.3887), Vec3f(0.8943, 0.4474, 0.0))
+            @test coordinates(coordinates(msh2)[faces(msh2)[1]]) == [Vec3f(0), Vec3f(0.062805, 0.591207, 0.902102), Vec3f(0.058382, 0.577691, 0.904429)]
+            @test normals(msh2)[faces(msh2)[1]] == [Vec3f(0.9134, 0.104, 0.3934), Vec3f(0.8079, 0.4428, 0.3887), Vec3f(0.8943, 0.4474, 0.0)]
 
             # test that save works with FaceViews
             mktempdir() do tmpdir
@@ -220,6 +220,20 @@ end
             # msh = load(joinpath(tf, "sphere5.gts"))
             # @test typeof(msh) == GLNormalMesh
             # test_face_indices(msh)
+        end
+        @testset "GLB" begin
+            msh = load(joinpath(tf, "cube.glb"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 24
+            @test test_face_indices(msh)
+        end
+        @testset "GLTF" begin
+            msh = load(joinpath(tf, "triangle.gltf"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 1
+            @test length(coordinates(msh)) == 3
+            @test test_face_indices(msh)
         end
 
         @testset "Partial Sponza (OBJ)" begin
