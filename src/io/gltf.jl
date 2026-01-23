@@ -724,22 +724,3 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
 
     return MetaMesh(mesh, metadata)
 end
-
-# Register formats with FileIO
-function __init__()
-    # GLB format: binary glTF with magic number
-    FileIO.add_format(
-        format"GLB",
-        UInt8[0x67, 0x6C, 0x54, 0x46],  # "glTF" magic bytes
-        ".glb",
-        [:MeshIO => Base.UUID("7269a6da-0436-5bbc-96c2-40638cbb6118")]
-    )
-
-    # GLTF format: JSON-based glTF (no reliable magic, use extension)
-    FileIO.add_format(
-        format"GLTF",
-        (),
-        [".gltf"],
-        [:MeshIO => Base.UUID("7269a6da-0436-5bbc-96c2-40638cbb6118")]
-    )
-end
