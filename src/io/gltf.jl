@@ -12,12 +12,14 @@ const GLB_JSON_CHUNK = 0x4E4F534A  # "JSON" in ASCII
 const GLB_BIN_CHUNK = 0x004E4942   # "BIN\0" in ASCII
 
 """
-    load(fn::File{format"GLB"}; facetype=GLTriangleFace, pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f)
+    load(fn::File{format"GLB"}; facetype=GLTriangleFace, pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f, up=Vec3f(0, 0, 1))
 
 Load a GLB (binary glTF) file and return a MetaMesh with materials and submesh views.
+`up` specifies the target up-axis: `Vec3f(0,0,1)` (default) rotates glTF Y-up to Z-up,
+`Vec3f(0,1,0)` keeps native glTF Y-up.
 """
 function load(fn::File{format"GLB"}; facetype=GLTriangleFace, pointtype=Point3f,
-              normaltype=Vec3f, uvtype=Vec2f)
+              normaltype=Vec3f, uvtype=Vec2f, up=Vec3f(0, 0, 1))
     open(fn) do io
         s = stream(io)
         # Read GLB header (12 bytes)
@@ -50,18 +52,20 @@ function load(fn::File{format"GLB"}; facetype=GLTriangleFace, pointtype=Point3f,
             binary_data = read(s, bin_length)
         end
 
-        return _extract_gltf_mesh(gltf, binary_data, nothing; facetype, pointtype, normaltype, uvtype)
+        return _extract_gltf_mesh(gltf, binary_data, nothing; facetype, pointtype, normaltype, uvtype, up)
     end
 end
 
 """
-    load(fn::File{format"GLTF"}; facetype=GLTriangleFace, pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f)
+    load(fn::File{format"GLTF"}; facetype=GLTriangleFace, pointtype=Point3f, normaltype=Vec3f, uvtype=Vec2f, up=Vec3f(0, 0, 1))
 
 Load a glTF (JSON) file and return a MetaMesh with materials and submesh views.
 External .bin files are loaded relative to the glTF file location.
+`up` specifies the target up-axis: `Vec3f(0,0,1)` (default) rotates glTF Y-up to Z-up,
+`Vec3f(0,1,0)` keeps native glTF Y-up.
 """
 function load(fn::File{format"GLTF"}; facetype=GLTriangleFace, pointtype=Point3f,
-              normaltype=Vec3f, uvtype=Vec2f)
+              normaltype=Vec3f, uvtype=Vec2f, up=Vec3f(0, 0, 1))
     open(fn) do io
         s = stream(io)
         json_data = read(s, String)
@@ -70,7 +74,7 @@ function load(fn::File{format"GLTF"}; facetype=GLTriangleFace, pointtype=Point3f
         # Get the directory containing the glTF file for resolving relative URIs
         base_path = dirname(FileIO.filename(fn))
 
-        return _extract_gltf_mesh(gltf, UInt8[], base_path; facetype, pointtype, normaltype, uvtype)
+        return _extract_gltf_mesh(gltf, UInt8[], base_path; facetype, pointtype, normaltype, uvtype, up)
     end
 end
 
@@ -504,6 +508,84 @@ function _extract_gltf_materials(gltf, textures::Dict{String, Any})
     return materials
 end
 
+const _identity_mat4f = Mat4f(
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+)
+
+# +90° rotation around X axis: rotates Y-up to Z-up
+const _y_to_z_up_mat4f = Mat4f(
+    1, 0, 0, 0,
+    0, 0, 1, 0,
+    0, -1, 0, 0,
+    0, 0, 0, 1
+)
+
+"""
+    _compute_up_rotation(up::Vec3f) -> Mat4f
+
+Compute a 4x4 rotation matrix that rotates glTF's native Y-up to the target `up` axis.
+Fast paths for common cases (Z-up, Y-up), general Rodrigues rotation otherwise.
+"""
+function _compute_up_rotation(up::Vec3f)
+    gltf_up = Vec3f(0, 1, 0)
+    # Normalize
+    len = sqrt(up[1]^2 + up[2]^2 + up[3]^2)
+    up_n = up / len
+
+    # Fast path: Z-up (most common)
+    if abs(up_n[1]) < 1f-6 && abs(up_n[2]) < 1f-6 && up_n[3] > 0.9999f0
+        return _y_to_z_up_mat4f
+    end
+
+    # Fast path: Y-up (native glTF, no rotation)
+    dot_val = gltf_up[1]*up_n[1] + gltf_up[2]*up_n[2] + gltf_up[3]*up_n[3]
+    if dot_val > 0.9999f0
+        return _identity_mat4f
+    end
+
+    # Anti-parallel (180° rotation around X)
+    if dot_val < -0.9999f0
+        return Mat4f(
+            1, 0, 0, 0,
+            0, -1, 0, 0,
+            0, 0, -1, 0,
+            0, 0, 0, 1
+        )
+    end
+
+    # General rotation from gltf_up to up_n via Rodrigues' formula
+    # R = I + K + K^2 * (1-c)/s^2  where K is skew-symmetric of cross(from, to)
+    cx = gltf_up[2]*up_n[3] - gltf_up[3]*up_n[2]
+    cy = gltf_up[3]*up_n[1] - gltf_up[1]*up_n[3]
+    cz = gltf_up[1]*up_n[2] - gltf_up[2]*up_n[1]
+    s = sqrt(cx^2 + cy^2 + cz^2)
+    c = dot_val
+
+    k1, k2, k3 = cx/s, cy/s, cz/s
+    K = Mat3f(
+        0, k3, -k2,
+        -k3, 0, k1,
+        k2, -k1, 0
+    )
+    K2 = K * K
+    I3 = Mat3f(
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1
+    )
+    rot3 = I3 + s * K + (1 - c) * K2
+
+    return Mat4f(
+        rot3[1,1], rot3[2,1], rot3[3,1], 0,
+        rot3[1,2], rot3[2,2], rot3[3,2], 0,
+        rot3[1,3], rot3[2,3], rot3[3,3], 0,
+        0, 0, 0, 1
+    )
+end
+
 """
     _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path; kwargs...) -> MetaMesh
 
@@ -511,7 +593,8 @@ Extract mesh data from glTF structure with node hierarchy transforms.
 """
 function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
                             facetype=GLTriangleFace, pointtype=Point3f,
-                            normaltype=Vec3f, uvtype=Vec2f)
+                            normaltype=Vec3f, uvtype=Vec2f,
+                            up=Vec3f(0, 0, 1))
 
     textures_dict = _extract_gltf_textures(gltf, binary_data, base_path)
     materials_dict = _extract_gltf_materials(gltf, textures_dict)
@@ -535,13 +618,8 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
     current_vertex_offset = Ref(0)
     current_face_offset = Ref(0)
 
-    # Correction matrix to convert coordinate system if needed
-    identity_mat = Mat4f(
-        1, 0, 0, 0,
-        0, 1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1
-    )
+    # Root transform to convert from glTF Y-up to target up axis
+    up_matrix = _compute_up_rotation(up)
 
     function process_node(node_idx::Int, parent_transform::Mat4f)
         node = gltf.nodes[node_idx + 1]
@@ -679,7 +757,7 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
         scene = gltf.scenes[gltf.scene + 1]
         if haskey(scene, :nodes)
             for root_node_idx in scene.nodes
-                process_node(root_node_idx, identity_mat)
+                process_node(root_node_idx, up_matrix)
             end
         end
     elseif haskey(gltf, :nodes)
@@ -694,7 +772,7 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
         end
         for i in 0:(length(gltf.nodes)-1)
             if !(i in all_children)
-                process_node(i, identity_mat)
+                process_node(i, up_matrix)
             end
         end
     end
