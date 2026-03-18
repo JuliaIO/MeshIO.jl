@@ -3,6 +3,7 @@ module MeshIO
 using GeometryBasics
 using ColorTypes
 using Printf
+using UUIDs: UUID
 
 using GeometryBasics: raw, value, decompose_normals, convert_simplex
 using FileIO: FileIO, @format_str, Stream, File, stream, skipmagic
@@ -18,6 +19,7 @@ include("io/msh.jl")
 include("io/gts.jl")
 include("io/ifs.jl")
 include("io/inp.jl")
+include("io/gltf.jl")
 
 """
     load(fn::File{MeshFormat}; pointtype=Point3f, uvtype=Vec2f,
@@ -50,6 +52,16 @@ function filtertuple(f, xs::Tuple)
     else
         filter(f, xs)
     end
+end
+
+const MeshIO_UUID = UUID("7269a6da-0436-5bbc-96c2-40638cbb6118")
+
+function __init__()
+    # Register GLTF/GLB formats with FileIO
+    # GLB (binary GLTF) has magic bytes "glTF"
+    FileIO.add_format(format"GLB", "glTF", ".glb", [:MeshIO => MeshIO_UUID])
+    # GLTF is JSON-based, no reliable magic bytes
+    FileIO.add_format(format"GLTF", (), ".gltf", [:MeshIO => MeshIO_UUID])
 end
 
 end # module

@@ -351,6 +351,88 @@ end
             # @test typeof(msh) == GLNormalMesh
             # test_face_indices(msh)
         end
+        @testset "GLB" begin
+            msh = load(joinpath(tf, "cube.glb"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 24
+            @test test_face_indices(msh)
+        end
+        @testset "GLTF" begin
+            msh = load(joinpath(tf, "triangle.gltf"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 1
+            @test length(coordinates(msh)) == 3
+            @test test_face_indices(msh)
+        end
+
+        @testset "GLB normals (Khronos Box)" begin
+            # Box.glb from Khronos glTF-Sample-Assets — unit cube with normals + material
+            msh = load(joinpath(tf, "Box.glb"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 24
+            @test test_face_indices(msh)
+            @test length(normals(msh)) == 24
+            # Default Z-up: glTF Y-up normal (0,1,0) becomes (0,0,1)
+            # First 4 normals are the top face
+            @test all(n -> n ≈ Vec3f(0, 0, 1), normals(msh)[1:4])
+            # Material: "Red" with baseColorFactor
+            @test haskey(msh, :materials)
+            @test msh[:material_names] == ["Red"]
+            mat = msh[:materials]["Red"]
+            @test mat["diffuse"] ≈ Vec3f(0.8, 0.0, 0.0)
+            @test mat["metallic"] ≈ 0.0f0
+            @test mat["alpha"] ≈ 1.0f0
+        end
+
+        @testset "GLB normals + UVs + texture (Khronos BoxTextured)" begin
+            msh = load(joinpath(tf, "BoxTextured.glb"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 24
+            @test test_face_indices(msh)
+            @test length(normals(msh)) == 24
+            @test haskey(vertex_attributes(msh), :uv)
+            @test length(msh.uv) == 24
+            # Material exists (texture loading may fail without ImageIO)
+            @test haskey(msh, :materials)
+            @test msh[:material_names] == ["Texture"]
+        end
+
+        @testset "GLB interleaved attributes (Khronos BoxInterleaved)" begin
+            # BoxInterleaved.glb uses byteStride for interleaved vertex data
+            msh = load(joinpath(tf, "BoxInterleaved.glb"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 24
+            @test test_face_indices(msh)
+            @test length(normals(msh)) == 24
+        end
+
+        @testset "GLTF multiple meshes (Khronos SimpleMeshes)" begin
+            # SimpleMeshes.gltf — two separate triangle meshes on different nodes
+            msh = load(joinpath(tf, "SimpleMeshes.gltf"))
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 2
+            @test length(coordinates(msh)) == 6
+            @test test_face_indices(msh)
+            # Two submeshes → two views
+            @test length(msh.views) == 2
+        end
+
+        @testset "GLB Y-up (no rotation)" begin
+            # With up=Y, positions/normals should stay in glTF's native Y-up space
+            msh_yup = load(joinpath(tf, "Box.glb"); up=Vec3f(0, 1, 0))
+            msh_zup = load(joinpath(tf, "Box.glb"))
+            # Y-up: top face normals point +Y
+            @test all(n -> n ≈ Vec3f(0, 1, 0), normals(msh_yup)[1:4])
+            # Z-up: same normals rotated to +Z
+            @test all(n -> n ≈ Vec3f(0, 0, 1), normals(msh_zup)[1:4])
+            # Y-up top face has y=0.5, Z-up has z=0.5
+            @test all(p -> p[2] ≈ 0.5f0, coordinates(msh_yup)[1:4])
+            @test all(p -> p[3] ≈ 0.5f0, coordinates(msh_zup)[1:4])
+        end
 
         @testset "Partial Sponza (OBJ)" begin
             # reduced version of the Sponza model from https://casual-effects.com/data/
