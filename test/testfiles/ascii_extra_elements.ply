@@ -1,0 +1,26 @@
+ply
+format ascii 1.0
+comment Test file with extra element types (edge) that should be skipped
+element vertex 4
+property float x
+property float y
+property float z
+element face 2
+property list uchar int vertex_index
+element edge 4
+property int vertex1
+property int vertex2
+property uchar red
+property uchar green
+property uchar blue
+end_header
+0.0 0.0 0.0
+1.0 0.0 0.0
+1.0 1.0 0.0
+0.0 1.0 0.0
+3 0 1 2
+3 2 3 0
+0 1 255 0 0
+1 2 0 255 0
+2 3 0 0 255
+3 0 255 255 0

@@ -1,0 +1,22 @@
+ply
+format ascii 1.0
+comment Test file with normals and UVs
+comment Testing u/v UV naming convention
+element vertex 4
+property float x
+property float y
+property float z
+property float nx
+property float ny
+property float nz
+property float u
+property float v
+element face 2
+property list uchar int vertex_index
+end_header
+0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0
+1.0 0.0 0.0 0.0 0.0 1.0 1.0 0.0
+1.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
+0.0 1.0 0.0 0.0 0.0 1.0 0.0 1.0
+3 0 1 2
+3 2 3 0

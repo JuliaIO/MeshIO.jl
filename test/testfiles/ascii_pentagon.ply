@@ -1,0 +1,16 @@
+ply
+format ascii 1.0
+comment Test file with a pentagon face (n-gon triangulation)
+element vertex 5
+property float x
+property float y
+property float z
+element face 1
+property list uchar int vertex_index
+end_header
+1.0 0.0 0.0
+0.309 0.951 0.0
+-0.809 0.588 0.0
+-0.809 -0.588 0.0
+0.309 -0.951 0.0
+5 0 1 2 3 4

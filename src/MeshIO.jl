@@ -18,6 +18,7 @@ include("io/2dm.jl")
 include("io/msh.jl")
 include("io/gts.jl")
 include("io/ifs.jl")
+include("io/inp.jl")
 include("io/gltf.jl")
 
 """

@@ -1,0 +1,16 @@
+ply
+format ascii 1.0
+comment Test file with s/t UV naming convention
+element vertex 3
+property float x
+property float y
+property float z
+property float s
+property float t
+element face 1
+property list uchar int vertex_index
+end_header
+0.0 0.0 0.0 0.25 0.75
+1.0 0.0 0.0 0.5 0.5
+0.5 1.0 0.0 0.0 1.0
+3 0 1 2

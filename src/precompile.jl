@@ -21,6 +21,7 @@ function _precompile_()
         @warnpcfail precompile(load, (File{format"PLY_BINARY",IOStream},))
         @warnpcfail precompile(load, (File{format"STL_ASCII",IOStream},))
         @warnpcfail precompile(load, (File{format"STL_BINARY",IOStream},))
+        @warnpcfail precompile(load, (File{format"INP",IOStream},))
     else
         @warnpcfail precompile(load, (File{format"2DM"},))
         @warnpcfail precompile(load, (File{format"MSH"},))
@@ -30,6 +31,7 @@ function _precompile_()
         @warnpcfail precompile(load, (File{format"PLY_BINARY"},))
         @warnpcfail precompile(load, (File{format"STL_ASCII"},))
         @warnpcfail precompile(load, (File{format"STL_BINARY"},))
+        @warnpcfail precompile(load, (File{format"INP"},))
     end
 
 end

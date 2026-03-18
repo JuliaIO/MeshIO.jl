@@ -52,7 +52,7 @@ function load(fn::File{format"GLB"}; facetype=GLTriangleFace, pointtype=Point3f,
             binary_data = read(s, bin_length)
         end
 
-        return _extract_gltf_mesh(gltf, binary_data, nothing; facetype, pointtype, normaltype, uvtype, up)
+        return extract_gltf_mesh(gltf, binary_data, nothing; facetype, pointtype, normaltype, uvtype, up)
     end
 end
 
@@ -74,16 +74,16 @@ function load(fn::File{format"GLTF"}; facetype=GLTriangleFace, pointtype=Point3f
         # Get the directory containing the glTF file for resolving relative URIs
         base_path = dirname(FileIO.filename(fn))
 
-        return _extract_gltf_mesh(gltf, UInt8[], base_path; facetype, pointtype, normaltype, uvtype, up)
+        return extract_gltf_mesh(gltf, UInt8[], base_path; facetype, pointtype, normaltype, uvtype, up)
     end
 end
 
 """
-    _get_node_transform(node) -> Mat4f
+    gltf_node_transform(node) -> Mat4f
 
 Get the 4x4 transformation matrix for a glTF node.
 """
-function _get_node_transform(node)
+function gltf_node_transform(node)
     if haskey(node, :matrix)
         m = node.matrix
         return Mat4f(
@@ -115,22 +115,22 @@ function _get_node_transform(node)
 end
 
 """
-    _transform_point(p, mat::Mat4f, ::Type{PT}) where PT
+    gltf_transform_point(p, mat::Mat4f, ::Type{PT}) where PT
 
 Apply a 4x4 transformation matrix to a 3D point.
 """
-function _transform_point(p, mat::Mat4f, ::Type{PT}) where PT
+function gltf_transform_point(p, mat::Mat4f, ::Type{PT}) where PT
     v = Vec4f(p[1], p[2], p[3], 1.0f0)
     result = mat * v
     return PT(result[1], result[2], result[3])
 end
 
 """
-    _transform_normal(n, mat::Mat4f, ::Type{NT}) where NT
+    gltf_transform_normal(n, mat::Mat4f, ::Type{NT}) where NT
 
 Apply a 4x4 transformation matrix to a normal vector (using inverse transpose of upper 3x3).
 """
-function _transform_normal(n, mat::Mat4f, ::Type{NT}) where NT
+function gltf_transform_normal(n, mat::Mat4f, ::Type{NT}) where NT
     m3 = Mat3f(mat[1:3, 1:3])
     normal_mat = transpose(inv(m3))
     v = Vec3f(n[1], n[2], n[3])
@@ -141,11 +141,11 @@ function _transform_normal(n, mat::Mat4f, ::Type{NT}) where NT
 end
 
 """
-    _load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::Union{String,Nothing}, buffer_idx::Int) -> Vector{UInt8}
+    gltf_load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::Union{String,Nothing}, buffer_idx::Int) -> Vector{UInt8}
 
 Load buffer data either from embedded binary or external file.
 """
-function _load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::Union{String,Nothing}, buffer_idx::Int)
+function gltf_load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::Union{String,Nothing}, buffer_idx::Int)
     buffer = gltf.buffers[buffer_idx + 1]
 
     if haskey(buffer, :uri)
@@ -174,11 +174,11 @@ function _load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::Unio
 end
 
 """
-    _get_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accessor_idx::Int)
+    gltf_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accessor_idx::Int)
 
 Get data from a glTF accessor.
 """
-function _get_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accessor_idx::Int)
+function gltf_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accessor_idx::Int)
     accessor = gltf.accessors[accessor_idx + 1]
     buffer_view = gltf.bufferViews[accessor.bufferView + 1]
 
@@ -187,13 +187,13 @@ function _get_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accesso
     buffer_data = if buffer_idx == 0 && !isempty(binary_data)
         binary_data
     else
-        _load_buffer_data(gltf, binary_data, base_path, buffer_idx)
+        gltf_load_buffer_data(gltf, binary_data, base_path, buffer_idx)
     end
 
     component_type = accessor.componentType
-    type_info = _get_component_type_info(component_type)
+    type_info = gltf_component_type_info(component_type)
     count = accessor.count
-    num_components = _get_type_components(get(accessor, :type, "SCALAR"))
+    num_components = gltf_type_components(get(accessor, :type, "SCALAR"))
 
     offset = get(buffer_view, :byteOffset, 0) + get(accessor, :byteOffset, 0)
     stride = get(buffer_view, :byteStride, 0)
@@ -202,22 +202,22 @@ function _get_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accesso
         stride = type_info.size * num_components
     end
 
-    data = []
+    ET = num_components == 1 ? type_info.type : NTuple{num_components, type_info.type}
+    data = Vector{ET}(undef, count)
     for i in 0:(count-1)
         element_offset = offset + i * stride + 1
-        element = _read_typed_data(buffer_data, element_offset, type_info.type, num_components)
-        push!(data, element)
+        data[i + 1] = gltf_read_typed_data(buffer_data, element_offset, type_info.type, num_components)
     end
 
     return data
 end
 
 """
-    _get_component_type_info(component_type::Int)
+    gltf_component_type_info(component_type::Int)
 
 Get Julia type and size for glTF component type.
 """
-function _get_component_type_info(component_type::Int)
+function gltf_component_type_info(component_type::Int)
     types = Dict(
         5120 => (type=Int8, size=1),
         5121 => (type=UInt8, size=1),
@@ -230,11 +230,11 @@ function _get_component_type_info(component_type::Int)
 end
 
 """
-    _get_type_components(type_str::String) -> Int
+    gltf_type_components(type_str::String) -> Int
 
 Get number of components for glTF type.
 """
-function _get_type_components(type_str::String)
+function gltf_type_components(type_str::String)
     components = Dict(
         "SCALAR" => 1,
         "VEC2" => 2,
@@ -248,11 +248,11 @@ function _get_type_components(type_str::String)
 end
 
 """
-    _read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
+    gltf_read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
 
 Read typed data from byte array.
 """
-function _read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
+function gltf_read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
     if count == 1
         return reinterpret(T, data[offset:offset+sizeof(T)-1])[1]
     else
@@ -262,11 +262,11 @@ function _read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
 end
 
 """
-    _extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path) -> Dict{String, Any}
+    extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path) -> Dict{String, Any}
 
 Extract all textures from glTF data and return a dictionary.
 """
-function _extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path)
+function extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path)
     textures = Dict{String, Any}()
 
     if !haskey(gltf, :textures) || !haskey(gltf, :images)
@@ -291,7 +291,7 @@ function _extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path)
             buffer_data = if buffer_idx == 0 && !isempty(binary_data)
                 binary_data
             else
-                _load_buffer_data(gltf, binary_data, base_path, buffer_idx)
+                gltf_load_buffer_data(gltf, binary_data, base_path, buffer_idx)
             end
 
             offset = get(buffer_view, :byteOffset, 0) + 1
@@ -346,12 +346,12 @@ function _extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path)
 end
 
 """
-    _get_texture_transform(texture_info) -> NamedTuple
+    gltf_texture_transform(texture_info) -> NamedTuple
 
 Extract KHR_texture_transform parameters from a texture info object.
 Returns (offset, scale, rotation) with defaults if not present.
 """
-function _get_texture_transform(texture_info)
+function gltf_texture_transform(texture_info)
     offset = Vec2f(0, 0)
     scale = Vec2f(1, 1)
     rotation = 0.0f0
@@ -376,13 +376,13 @@ function _get_texture_transform(texture_info)
 end
 
 """
-    _apply_uv_transform(uv, transform) -> Vec2f
+    apply_gltf_uv_transform(uv, transform) -> Vec2f
 
 Apply KHR_texture_transform to a UV coordinate.
 Formula: uv' = rotation_matrix * (uv * scale) + offset
 UVs are normalized to [0,1] range using mod to handle texture wrapping.
 """
-function _apply_uv_transform(uv, transform)
+function apply_gltf_uv_transform(uv, transform)
     # Apply scale
     scaled = Vec2f(uv[1] * transform.scale[1], uv[2] * transform.scale[2])
 
@@ -403,12 +403,12 @@ function _apply_uv_transform(uv, transform)
 end
 
 """
-    _extract_gltf_materials(gltf, textures::Dict{String, Any}) -> Dict{String, Any}
+    extract_gltf_materials(gltf, textures::Dict{String, Any}) -> Dict{String, Any}
 
 Extract materials from glTF JSON structure and return a dictionary.
 Also extracts UV transform info for KHR_texture_transform extension.
 """
-function _extract_gltf_materials(gltf, textures::Dict{String, Any})
+function extract_gltf_materials(gltf, textures::Dict{String, Any})
     materials = Dict{String, Any}()
 
     if !haskey(gltf, :materials)
@@ -450,7 +450,7 @@ function _extract_gltf_materials(gltf, textures::Dict{String, Any})
                     mat_dict["diffuse map"] = tex_dict
                 end
                 # Store UV transform for this material
-                uv_transform = _get_texture_transform(pbr.baseColorTexture)
+                uv_transform = gltf_texture_transform(pbr.baseColorTexture)
                 if uv_transform.offset != Vec2f(0, 0) || uv_transform.scale != Vec2f(1, 1) || uv_transform.rotation != 0
                     mat_dict["uv_transform"] = uv_transform
                 end
@@ -508,7 +508,7 @@ function _extract_gltf_materials(gltf, textures::Dict{String, Any})
     return materials
 end
 
-const _identity_mat4f = Mat4f(
+const IDENTITY_MAT4F = Mat4f(
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
@@ -516,7 +516,7 @@ const _identity_mat4f = Mat4f(
 )
 
 # +90° rotation around X axis: rotates Y-up to Z-up
-const _y_to_z_up_mat4f = Mat4f(
+const Y_TO_Z_UP_MAT4F = Mat4f(
     1, 0, 0, 0,
     0, 0, 1, 0,
     0, -1, 0, 0,
@@ -524,12 +524,12 @@ const _y_to_z_up_mat4f = Mat4f(
 )
 
 """
-    _compute_up_rotation(up::Vec3f) -> Mat4f
+    gltf_up_rotation(up::Vec3f) -> Mat4f
 
 Compute a 4x4 rotation matrix that rotates glTF's native Y-up to the target `up` axis.
 Fast paths for common cases (Z-up, Y-up), general Rodrigues rotation otherwise.
 """
-function _compute_up_rotation(up::Vec3f)
+function gltf_up_rotation(up::Vec3f)
     gltf_up = Vec3f(0, 1, 0)
     # Normalize
     len = sqrt(up[1]^2 + up[2]^2 + up[3]^2)
@@ -537,13 +537,13 @@ function _compute_up_rotation(up::Vec3f)
 
     # Fast path: Z-up (most common)
     if abs(up_n[1]) < 1f-6 && abs(up_n[2]) < 1f-6 && up_n[3] > 0.9999f0
-        return _y_to_z_up_mat4f
+        return Y_TO_Z_UP_MAT4F
     end
 
     # Fast path: Y-up (native glTF, no rotation)
     dot_val = gltf_up[1]*up_n[1] + gltf_up[2]*up_n[2] + gltf_up[3]*up_n[3]
     if dot_val > 0.9999f0
-        return _identity_mat4f
+        return IDENTITY_MAT4F
     end
 
     # Anti-parallel (180° rotation around X)
@@ -587,17 +587,17 @@ function _compute_up_rotation(up::Vec3f)
 end
 
 """
-    _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path; kwargs...) -> MetaMesh
+    extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path; kwargs...) -> MetaMesh
 
 Extract mesh data from glTF structure with node hierarchy transforms.
 """
-function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
+function extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
                             facetype=GLTriangleFace, pointtype=Point3f,
                             normaltype=Vec3f, uvtype=Vec2f,
                             up=Vec3f(0, 0, 1))
 
-    textures_dict = _extract_gltf_textures(gltf, binary_data, base_path)
-    materials_dict = _extract_gltf_materials(gltf, textures_dict)
+    textures_dict = extract_gltf_textures(gltf, binary_data, base_path)
+    materials_dict = extract_gltf_materials(gltf, textures_dict)
 
     if !haskey(gltf, :meshes)
         empty_mesh = GeometryBasics.Mesh(pointtype[], facetype[])
@@ -619,12 +619,12 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
     current_face_offset = Ref(0)
 
     # Root transform to convert from glTF Y-up to target up axis
-    up_matrix = _compute_up_rotation(up)
+    up_matrix = gltf_up_rotation(up)
 
     function process_node(node_idx::Int, parent_transform::Mat4f)
         node = gltf.nodes[node_idx + 1]
 
-        local_transform = _get_node_transform(node)
+        local_transform = gltf_node_transform(node)
         world_transform = parent_transform * local_transform
 
         if haskey(node, :mesh)
@@ -634,7 +634,7 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
             for primitive in mesh.primitives
                 positions = nothing
                 if haskey(primitive.attributes, :POSITION)
-                    positions = _get_accessor_data(gltf, binary_data, base_path, primitive.attributes.POSITION)
+                    positions = gltf_accessor_data(gltf, binary_data, base_path, primitive.attributes.POSITION)
                 end
 
                 if isnothing(positions)
@@ -643,28 +643,28 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
 
                 normals = nothing
                 if haskey(primitive.attributes, :NORMAL)
-                    normals = _get_accessor_data(gltf, binary_data, base_path, primitive.attributes.NORMAL)
+                    normals = gltf_accessor_data(gltf, binary_data, base_path, primitive.attributes.NORMAL)
                     has_normals = true
                 end
 
                 uvs = nothing
                 if haskey(primitive.attributes, :TEXCOORD_0)
-                    uvs = _get_accessor_data(gltf, binary_data, base_path, primitive.attributes.TEXCOORD_0)
+                    uvs = gltf_accessor_data(gltf, binary_data, base_path, primitive.attributes.TEXCOORD_0)
                     has_uvs = true
                 end
 
                 indices = nothing
                 if haskey(primitive, :indices)
-                    indices = _get_accessor_data(gltf, binary_data, base_path, primitive.indices)
+                    indices = gltf_accessor_data(gltf, binary_data, base_path, primitive.indices)
                 end
 
                 for p in positions
-                    push!(all_positions, _transform_point(p, world_transform, pointtype))
+                    push!(all_positions, gltf_transform_point(p, world_transform, pointtype))
                 end
 
                 if !isnothing(normals)
                     for n in normals
-                        push!(all_normals, _transform_normal(n, world_transform, normaltype))
+                        push!(all_normals, gltf_transform_normal(n, world_transform, normaltype))
                     end
                 elseif has_normals
                     for _ in 1:length(positions)
@@ -689,7 +689,7 @@ function _extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
                 if !isnothing(uvs)
                     for uv in uvs
                         if !isnothing(uv_transform)
-                            transformed_uv = _apply_uv_transform(uv, uv_transform)
+                            transformed_uv = apply_gltf_uv_transform(uv, uv_transform)
                             push!(all_uvs, uvtype(1.0f0 - transformed_uv[2], 1.0f0 - transformed_uv[1]))
                         else
                             push!(all_uvs, uvtype(uv[1], 1.0f0 - uv[2]))

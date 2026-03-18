@@ -77,54 +77,80 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
     n_points = 0
     n_faces = 0
 
-    properties = String[]
-
-    # read the header
+    # Parse header — same property tracking as binary loader
     line = readline(io)
 
-    has_normals = false
+    vertex_props = Tuple{Symbol, DataType}[]
+    in_vertex_element = false
+    in_face_element = false
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
             n_points = parse(Int, split(line)[3])
-        elseif startswith(line, "property float nx") || startswith(line, "property double nx")
-            has_normals = true
+            in_vertex_element = true
+            in_face_element = false
         elseif startswith(line, "element face")
             n_faces = parse(Int, split(line)[3])
-        elseif startswith(line, "property")
-            push!(properties, line)
+            in_vertex_element = false
+            in_face_element = true
+        elseif startswith(line, "element")
+            in_vertex_element = false
+            in_face_element = false
+        elseif startswith(line, "property") && in_vertex_element && !startswith(line, "property list")
+            parts = split(line)
+            push!(vertex_props, (Symbol(parts[3]), _ply_type(parts[2])))
         end
         line = readline(io)
     end
 
+    # Detect grouped attributes
+    prop_names = [p[1] for p in vertex_props]
+    has_normals = :nx in prop_names && :ny in prop_names && :nz in prop_names
+    has_uv = (:u in prop_names && :v in prop_names) ||
+             (:s in prop_names && :t in prop_names) ||
+             (:texture_u in prop_names && :texture_v in prop_names)
+    uv_names = :u in prop_names ? (:u, :v) : :s in prop_names ? (:s, :t) : (:texture_u, :texture_v)
+
+    # Build property-name-to-column-index mapping
+    prop_idx = Dict(name => i for (i, (name, _)) in enumerate(vertex_props))
+
     faceeltype = eltype(facetype)
     points = Array{pointtype}(undef, n_points)
-    point_normals = Array{normalstype}(undef, n_points)
-    #faces = Array{FaceType}(undef, n_faces)
+    point_normals = has_normals ? Array{normalstype}(undef, n_points) : nothing
+    point_uvs = has_uv ? Array{Vec{2, Float32}}(undef, n_points) : nothing
     faces = facetype[]
 
-    # read the data
+    # Read vertex data — parse all columns, extract by index
     for i = 1:n_points
-        numbers = parse.(eltype(pointtype), split(readline(io)))
-        points[i] = pointtype(numbers[1:3])
-        if has_normals && length(numbers) >= 6
-            point_normals[i] = pointtype(numbers[4:6]) 
+        numbers = parse.(Float32, split(readline(io)))
+        points[i] = pointtype(numbers[prop_idx[:x]], numbers[prop_idx[:y]], numbers[prop_idx[:z]])
+        if has_normals
+            point_normals[i] = normalstype(numbers[prop_idx[:nx]], numbers[prop_idx[:ny]], numbers[prop_idx[:nz]])
+        end
+        if has_uv
+            point_uvs[i] = Vec2f(numbers[prop_idx[uv_names[1]]], numbers[prop_idx[uv_names[2]]])
         end
     end
 
     for i = 1:n_faces
         line = split(readline(io))
         len = parse(Int, popfirst!(line))
+        indices = reinterpret(ZeroIndex{UInt32}, parse.(UInt32, line[1:len]))
         if len == 3
-            push!(faces, NgonFace{3, faceeltype}(reinterpret(ZeroIndex{UInt32}, parse.(UInt32, line)))) # line looks like: "3 0 1 3"
+            push!(faces, NgonFace{3, faceeltype}(indices))
         elseif len == 4
-            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(reinterpret(ZeroIndex{UInt32}, parse.(UInt32, line))))...) # line looks like: "4 0 1 2 3"
+            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(indices))...)
+        else
+            for j in 2:len-1
+                push!(faces, NgonFace{3, faceeltype}((indices[1], indices[j], indices[j+1])))
+            end
         end
     end
-    if has_normals
-        return Mesh(points, faces; normal = point_normals)
-    else
-        return Mesh(points, faces)
-    end
+
+    kwargs = Pair{Symbol, Any}[]
+    has_normals && push!(kwargs, :normal => point_normals)
+    has_uv && push!(kwargs, :uv => point_uvs)
+
+    return Mesh(points, faces; kwargs...)
 end
 
 function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype=Point3f, normalstype=Vec3f)
@@ -132,70 +158,160 @@ function load(fs::Stream{format"PLY_BINARY"}; facetype=GLTriangleFace, pointtype
     n_points = 0
     n_faces = 0
 
-    properties = String[]
-
-    # read the header
+    # Parse header — track ALL vertex properties for correct byte stride and attribute extraction
     line = readline(io)
 
-    has_normals = false
-    has_doubles = Float32
-    xtype  = Float32; ytype  = Float32;  ztype = Float32
-    nxtype = Float32; nytype = Float32; nztype = Float32
+    vertex_props = Tuple{Symbol, DataType}[]  # (:x, Float32), (:nx, Float64), (:u, Float32), ...
+    face_index_type = UInt32
+    face_count_type = UInt8
+    in_vertex_element = false
+    in_face_element = false
     while !startswith(line, "end_header")
         if startswith(line, "element vertex")
             n_points = parse(Int, split(line)[3])
-        elseif startswith(line, "property double x")
-            xtype = Float64
-        elseif startswith(line, "property double y")
-            ytype = Float64
-        elseif startswith(line, "property double z")
-            ztype = Float64
-        elseif startswith(line, "property float n")
-            has_normals = true
-        elseif startswith(line, "property double nx")
-            has_normals = true
-            nxtype = Float64
-        elseif startswith(line, "property double ny")
-            has_normals = true
-            nytype = Float64
-        elseif startswith(line, "property double nz")
-            has_normals = true
-            nztype = Float64
+            in_vertex_element = true
+            in_face_element = false
         elseif startswith(line, "element face")
             n_faces = parse(Int, split(line)[3])
-        elseif startswith(line, "property")
-            push!(properties, line)
+            in_vertex_element = false
+            in_face_element = true
+        elseif startswith(line, "element")
+            in_vertex_element = false
+            in_face_element = false
+        elseif startswith(line, "property") && in_vertex_element && !startswith(line, "property list")
+            parts = split(line)
+            push!(vertex_props, (Symbol(parts[3]), _ply_type(parts[2])))
+        elseif startswith(line, "property list") && in_face_element
+            parts = split(line)
+            face_count_type = _ply_type(parts[3])
+            face_index_type = _ply_type(parts[4])
         end
         line = readline(io)
     end
 
-    faceeltype = eltype(facetype)
+    # Group scalar properties into known multi-component attributes:
+    #   x,y,z → position (Point3f)
+    #   nx,ny,nz → normal (Vec3f)
+    #   u,v (or s,t or texture_u,texture_v) → uv (Vec2f)
+    #   red,green,blue[,alpha] → color (Vec3f or Vec4f, normalized if UInt8)
+    # Remaining scalars are kept as-is.
+    prop_names = [p[1] for p in vertex_props]
+    has_normals = :nx in prop_names && :ny in prop_names && :nz in prop_names
+    has_uv = (:u in prop_names && :v in prop_names) ||
+             (:s in prop_names && :t in prop_names) ||
+             (:texture_u in prop_names && :texture_v in prop_names)
+    has_rgb = :red in prop_names && :green in prop_names && :blue in prop_names
+    has_alpha = has_rgb && :alpha in prop_names
+    uv_names = :u in prop_names ? (:u, :v) : :s in prop_names ? (:s, :t) : (:texture_u, :texture_v)
+
+    # Grouped attribute names to skip when collecting ungrouped scalars
+    grouped = Set([:x, :y, :z])
+    has_normals && union!(grouped, Set([:nx, :ny, :nz]))
+    has_uv && union!(grouped, Set([uv_names...]))
+    has_rgb && union!(grouped, Set([:red, :green, :blue]))
+    has_alpha && push!(grouped, :alpha)
+
+    # Ungrouped scalar properties (e.g. "confidence", "intensity", custom floats)
+    ungrouped = [(name, typ) for (name, typ) in vertex_props if name ∉ grouped]
+
+    # Pre-allocate arrays
     points = Array{pointtype}(undef, n_points)
-    point_normals = Array{normalstype}(undef, n_points)
-    #faces = Array{FaceType}(undef, n_faces)
-    faces = facetype[]
-
-    # read the data
-    for i = 1:n_points
-        points[i] = pointtype(read(io, xtype), read(io, ytype), read(io, ztype))
-        if has_normals
-            point_normals[i] = normalstype(read(io, nxtype), read(io, nytype), read(io, nztype))
-        end
-    end
-
-    for i = 1:n_faces
-        len = read(io, UInt8)
-        indices = reinterpret(ZeroIndex{UInt32}, [ read(io, UInt32) for _ in 1:len ]) 
-        if len == 3
-            push!(faces, NgonFace{3, faceeltype}(indices)) # line looks like: "3 0 1 3"
-        elseif len == 4
-            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(indices))...) # line looks like: "4 0 1 2 3"
-        end
-    end
-
-    if has_normals
-        return Mesh(points, faces; normal = point_normals)
+    point_normals = has_normals ? Array{normalstype}(undef, n_points) : nothing
+    point_uvs = has_uv ? Array{Vec{2, Float32}}(undef, n_points) : nothing
+    point_colors = if has_alpha
+        Array{Vec{4, Float32}}(undef, n_points)
+    elseif has_rgb
+        Array{Vec{3, Float32}}(undef, n_points)
     else
-        return Mesh(points, faces)
+        nothing
     end
+    scalar_arrays = Dict{Symbol, Vector{Float32}}(
+        name => Vector{Float32}(undef, n_points) for (name, _) in ungrouped
+    )
+
+    # Read vertex data — iterate all properties in header order for correct byte alignment
+    for i = 1:n_points
+        vals = Dict{Symbol, Any}()
+        for (pname, ptype) in vertex_props
+            vals[pname] = read(io, ptype)
+        end
+        points[i] = pointtype(Float32(vals[:x]), Float32(vals[:y]), Float32(vals[:z]))
+        if has_normals
+            point_normals[i] = normalstype(Float32(vals[:nx]), Float32(vals[:ny]), Float32(vals[:nz]))
+        end
+        if has_uv
+            point_uvs[i] = Vec2f(Float32(vals[uv_names[1]]), Float32(vals[uv_names[2]]))
+        end
+        if has_rgb
+            # Normalize UInt8 color channels to [0,1]
+            r, g, b = vals[:red], vals[:green], vals[:blue]
+            color_type = Dict(vertex_props)[:red]
+            if color_type <: Integer
+                r, g, b = Float32(r) / 255f0, Float32(g) / 255f0, Float32(b) / 255f0
+            else
+                r, g, b = Float32(r), Float32(g), Float32(b)
+            end
+            if has_alpha
+                a = vals[:alpha]
+                a = color_type <: Integer ? Float32(a) / 255f0 : Float32(a)
+                point_colors[i] = Vec4f(r, g, b, a)
+            else
+                point_colors[i] = Vec3f(r, g, b)
+            end
+        end
+        for (name, _) in ungrouped
+            scalar_arrays[name][i] = Float32(vals[name])
+        end
+    end
+
+    # Read faces
+    faceeltype = eltype(facetype)
+    faces = facetype[]
+    for i = 1:n_faces
+        len = Int(read(io, face_count_type))
+        indices = reinterpret(ZeroIndex{UInt32}, [UInt32(read(io, face_index_type) % UInt32) for _ in 1:len])
+        if len == 3
+            push!(faces, NgonFace{3, faceeltype}(indices))
+        elseif len == 4
+            push!(faces, convert_simplex(facetype, QuadFace{faceeltype}(indices))...)
+        else
+            for j in 2:len-1
+                push!(faces, NgonFace{3, faceeltype}((indices[1], indices[j], indices[j+1])))
+            end
+        end
+    end
+
+    # Verify face indices are in bounds
+    for f in faces
+        for idx in f
+            vidx = raw(idx) + 1  # ZeroIndex → 1-based
+            if vidx < 1 || vidx > n_points
+                error("Faces address $vidx vertex attributes but only $n_points are present.")
+            end
+        end
+    end
+
+    # Build keyword arguments for Mesh constructor
+    kwargs = Pair{Symbol, Any}[]
+    has_normals && push!(kwargs, :normal => point_normals)
+    has_uv && push!(kwargs, :uv => point_uvs)
+    point_colors !== nothing && push!(kwargs, :color => point_colors)
+    for (name, arr) in scalar_arrays
+        push!(kwargs, name => arr)
+    end
+
+    return Mesh(points, faces; kwargs...)
+end
+
+# Map PLY type strings to Julia types
+function _ply_type(s::AbstractString)
+    s == "float" || s == "float32" ? Float32 :
+    s == "double" || s == "float64" ? Float64 :
+    s == "int" || s == "int32" ? Int32 :
+    s == "uint" || s == "uint32" ? UInt32 :
+    s == "short" || s == "int16" ? Int16 :
+    s == "ushort" || s == "uint16" ? UInt16 :
+    s == "char" || s == "int8" ? Int8 :
+    s == "uchar" || s == "uint8" ? UInt8 :
+    error("Unknown PLY type: $s")
 end
