@@ -1,5 +1,5 @@
 # read .inp files
-function load(fs::Stream{format"INP"}; facetype=NgonFace, pointtype=Point3f)
+function load(fs::Stream{format"INP"}; facetype=GLTriangleFace, pointtype=Point3f)
     #INP file format
     io = stream(fs)
 
@@ -21,8 +21,7 @@ function load(fs::Stream{format"INP"}; facetype=NgonFace, pointtype=Point3f)
             push!(points, pointtype(parse.(eltype(pointtype),split(line,",")[2:4])))
         elseif BlockType == Val{:ElementBlock}()
             nodes = parse.(Int,split(line,",")[2:end])
-            face_nodes = [findfirst(==(node),node_idx) for node in nodes]
-            push!(faces, NgonFace{length(face_nodes),Int}(face_nodes...)) # parse the face
+            push!(faces, facetype([findfirst(==(node),node_idx) for node in nodes]...)) # parse the face
         else
             continue
         end
