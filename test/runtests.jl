@@ -55,6 +55,21 @@ end
             mesh_loaded = load(joinpath(tmpdir, "test.obj"))
             @test mesh_loaded == uvn_mesh
         end
+        for (info, file) in [("vertex only", "cube"), ("vertex uv", "cube_uv"), ("vertex uvv", "cube_uvw"), ("vertex normal", "test_face_normal")]
+            @testset "load save OBJ - $info" begin
+                initial_mesh = load(joinpath(tf, "$file.obj"))
+                save(joinpath(tmpdir, "temp.obj"), initial_mesh)
+                mesh_loaded = load(joinpath(tmpdir, "temp.obj"))
+                # TODO:
+                # We do not yet safe mtl related information, shading, object/group
+                # names and the associated mesh.views, and we handle `FaceViews`
+                # by flattening them instead of working them into face indices
+                @test_broken mesh_loaded == initial_mesh
+                expanded = GeometryBasics.expand_faceviews(initial_mesh)
+                @test mesh_loaded.faces == expanded.faces
+                @test mesh_loaded.vertex_attributes == expanded.vertex_attributes
+            end
+        end
     end
 
 
@@ -333,6 +348,18 @@ end
                     @test coordinates(msh2)[f1] == coordinates(msh3)[f2]
                     @test normals(msh2)[f1] == normals(msh3)[f2]
                 end
+
+                valid_msh = load(joinpath(tf, "cube_uv.obj"))
+                save(joinpath(tmpdir, "cube_uv.obj"), valid_msh)
+                saved_msh = load(joinpath(tmpdir, "cube_uv.obj"))
+                @test typeof(saved_msh.uv) == typeof(valid_msh.uv)
+                @test length(saved_msh.uv) == length(valid_msh.uv)
+
+                valid_msh = load(joinpath(tf, "cube_uvw.obj"))
+                save(joinpath(tmpdir, "cube_uvw.obj"), valid_msh)
+                saved_msh = load(joinpath(tmpdir, "cube_uvw.obj"))
+                @test typeof(saved_msh.uv) == typeof(valid_msh.uv)
+                @test length(saved_msh.uv) == length(valid_msh.uv)
             end
         end
         @testset "2DM" begin
