@@ -55,6 +55,21 @@ end
             mesh_loaded = load(joinpath(tmpdir, "test.obj"))
             @test mesh_loaded == uvn_mesh
         end
+        for (info, file) in [("vertex only", "cube"), ("vertex uv", "cube_uv"), ("vertex uvv", "cube_uvw"), ("vertex normal", "test_face_normal")]
+            @testset "load save OBJ - $info" begin
+                initial_mesh = load(joinpath(tf, "$file.obj"))
+                save(joinpath(tmpdir, "temp.obj"), initial_mesh)
+                mesh_loaded = load(joinpath(tmpdir, "temp.obj"))
+                # TODO:
+                # We do not yet safe mtl related information, shading, object/group
+                # names and the associated mesh.views, and we handle `FaceViews`
+                # by flattening them instead of working them into face indices
+                @test_broken mesh_loaded == initial_mesh
+                expanded = GeometryBasics.expand_faceviews(initial_mesh)
+                @test mesh_loaded.faces == expanded.faces
+                @test mesh_loaded.vertex_attributes == expanded.vertex_attributes
+            end
+        end
     end
 
 
