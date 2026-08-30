@@ -154,7 +154,7 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
 
         # Fallback - if no mtl file exists abort and return just the mesh
         if !any(filename -> isfile(joinpath(path, filename)), mtllibs)
-            @error "obj file contains references to .mtl files, but none could be found. Expected: $mtllibs in $path."
+            @warn "obj file contains references to .mtl files, but none could be found. Expected: $mtllibs in $path."
             return mesh
         end
 
