@@ -423,9 +423,18 @@ end
         end
 
         @testset "INP" begin
+            # tri mesh
             msh = load(joinpath(tf, "cube.inp"))
             @test length(faces(msh)) == 24
             @test length(coordinates(msh)) == 14
+            @test length(first(faces(msh))) == 3
+            @test msh.views == []
+            @test test_face_indices(msh)
+            # quad mesh
+            msh = load(joinpath(tf, "cube_quads.inp");facetype=QuadFace{Int})
+            @test length(faces(msh)) == 6
+            @test length(coordinates(msh)) == 8
+            @test length(first(faces(msh))) == 4
             @test msh.views == []
             @test test_face_indices(msh)
         end
