@@ -422,6 +422,38 @@ end
             @test material["diffuse map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
         end
 
+        @testset "Six-Sided Die (OBJ)" begin
+            # tests state-setting behvaior
+            # one usemtl statement, which must persist across multiple f statements
+            msh = load(joinpath(tf, "D6/D6.obj")) # quads
+
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 8
+            @test test_face_indices(msh)
+
+            @test length(msh[:material_names]) == 6
+            @test all(msh[:material_names] .== ["Material"])
+            @test msh[:shading] == BitVector(zeros(6))
+            @test length(msh[:object]) == 6
+            @test all(msh[:object] .== ["Cube"])
+            @test length(msh[:groups]) == 6
+            for i in 1:6
+                @test "Face$i" in msh[:groups]
+            end
+            @test length(msh[:materials]) == 1
+            @test length(msh[:materials]["Material"]) == 8
+            @test msh[:materials]["Material"]["refractive index"]           === 1.45f0
+            @test msh[:materials]["Material"]["diffuse map"]                isa Dict{String, Any}
+            @test msh[:materials]["Material"]["diffuse map"]["filename"]    == replace(joinpath(tf, "D6/dice_unwrap.png"), '\\' => '/')
+            @test msh[:materials]["Material"]["illumination model"]         === 2
+            @test msh[:materials]["Material"]["alpha"]                      === 1f0
+            @test msh[:materials]["Material"]["specular"]                   === Vec3f(0.5, 0.5, 0.5)
+            @test msh[:materials]["Material"]["shininess"]                  === 0f0
+            @test msh[:materials]["Material"]["ambient"]                    === Vec3f(1.0, 1.0, 1.0)
+            @test msh[:materials]["Material"]["emissive"]                   === 0f0
+        end
+
         @testset "INP" begin
             msh = load(joinpath(tf, "cube.inp"))
             @test length(faces(msh)) == 24
