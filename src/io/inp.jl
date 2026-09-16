@@ -21,7 +21,7 @@ function load(fs::Stream{format"INP"}; facetype=GLTriangleFace, pointtype=Point3
             push!(points, pointtype(parse.(eltype(pointtype),split(line,",")[2:4])))
         elseif BlockType == Val{:ElementBlock}()
             nodes = parse.(Int,split(line,",")[2:end])
-            push!(faces, TriangleFace{Int}(facetype([findfirst(==(node),node_idx) for node in nodes])...)) # parse the face
+            push!(faces, facetype([findfirst(==(node),node_idx) for node in nodes]...)) # parse the face
         else
             continue
         end
