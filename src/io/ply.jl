@@ -2,6 +2,7 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     io = stream(f)
     points = coordinates(msh)
     point_normals = normals(msh)
+    point_colors = plycolors(msh)
     meshfaces = faces(msh)
     n_points = length(points)
     n_faces = length(meshfaces)
@@ -14,18 +15,23 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     if !isnothing(point_normals)
         write(io, "property float nx\nproperty float ny\nproperty float nz\n")
     end
+    if !isnothing(point_colors)
+        write(io, "property uchar red\nproperty uchar green\nproperty uchar blue\n")
+        length(first(point_colors)) == 4 && write(io, "property uchar alpha\n")
+    end
     write(io, "element face $n_faces\n")
     write(io, "property list uchar int vertex_index\n")
     write(io, "end_header\n")
 
     # write the vertices and faces
 
-    if isnothing(point_normals)
+    if isnothing(point_normals) && isnothing(point_colors)
         write(io, points)
     else
-        for (v, n) in zip(points, point_normals)
-            write(io, v)
-            write(io, n)
+        for i in eachindex(points)
+            write(io, points[i])
+            isnothing(point_normals) || write(io, point_normals[i])
+            isnothing(point_colors) || write(io, point_colors[i])
         end
     end
 
@@ -36,10 +42,29 @@ function save(f::Stream{format"PLY_BINARY"}, msh::AbstractMesh)
     close(io)
 end
 
+"""
+The mesh's `:color` vertex attribute as UInt8 channels, the form `load` reads
+back (red, green, blue and optionally alpha, normalised to [0, 1]); `nothing`
+when there is none.
+"""
+function plycolors(msh::AbstractMesh)
+    colors = get(GeometryBasics.vertex_attributes(msh), :color, nothing)
+    colors === nothing && return nothing
+    return [plychannels(c) for c in colors]
+end
+
+plychannel(x::Real) = round(UInt8, 255 * clamp(Float32(x), 0f0, 1f0))
+plychannels(c::GeometryBasics.VecTypes{3}) = Vec{3,UInt8}(plychannel.(c))
+plychannels(c::GeometryBasics.VecTypes{4}) = Vec{4,UInt8}(plychannel.(c))
+plychannels(c::RGB) = Vec{3,UInt8}(plychannel(red(c)), plychannel(green(c)), plychannel(blue(c)))
+plychannels(c::RGBA) = Vec{4,UInt8}(plychannel(red(c)), plychannel(green(c)), plychannel(blue(c)),
+                                    plychannel(alpha(c)))
+
 function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     io = stream(f)
     points = coordinates(msh)
     point_normals = normals(msh)
+    point_colors = plycolors(msh)
     meshfaces = faces(msh)
     n_points = length(points)
     n_faces = length(meshfaces)
@@ -52,19 +77,20 @@ function save(f::Stream{format"PLY_ASCII"}, msh::AbstractMesh)
     if !isnothing(point_normals)
         write(io, "property float nx\nproperty float ny\nproperty float nz\n")
     end
+    if !isnothing(point_colors)
+        write(io, "property uchar red\nproperty uchar green\nproperty uchar blue\n")
+        length(first(point_colors)) == 4 && write(io, "property uchar alpha\n")
+    end
     write(io, "element face $n_faces\n")
     write(io, "property list uchar int vertex_index\n")
     write(io, "end_header\n")
 
     # write the vertices and faces
-    if isnothing(point_normals)
-        for v in points
-            println(io, join(Point{3, Float32}(v), " "))
-        end
-    else
-        for (v, n) in zip(points, point_normals)
-            println(io, join([v n], " "))
-        end
+    for i in eachindex(points)
+        print(io, join(Point{3, Float32}(points[i]), " "))
+        isnothing(point_normals) || print(io, " ", join(point_normals[i], " "))
+        isnothing(point_colors) || print(io, " ", join(Int.(point_colors[i]), " "))
+        println(io)
     end
     for f in meshfaces
         println(io, length(f), " ", join(raw.(ZeroIndex.(f)), " "))
@@ -109,6 +135,10 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
              (:s in prop_names && :t in prop_names) ||
              (:texture_u in prop_names && :texture_v in prop_names)
     uv_names = :u in prop_names ? (:u, :v) : :s in prop_names ? (:s, :t) : (:texture_u, :texture_v)
+    has_rgb = :red in prop_names && :green in prop_names && :blue in prop_names
+    has_alpha = has_rgb && :alpha in prop_names
+    # Integer channels are 0..255, as the binary reader normalises them.
+    color_scale = has_rgb && Dict(vertex_props)[:red] <: Integer ? 1f0 / 255f0 : 1f0
 
     # Build property-name-to-column-index mapping
     prop_idx = Dict(name => i for (i, (name, _)) in enumerate(vertex_props))
@@ -117,6 +147,8 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
     points = Array{pointtype}(undef, n_points)
     point_normals = has_normals ? Array{normalstype}(undef, n_points) : nothing
     point_uvs = has_uv ? Array{Vec{2, Float32}}(undef, n_points) : nothing
+    point_colors = has_alpha ? Array{Vec4f}(undef, n_points) :
+                   has_rgb ? Array{Vec3f}(undef, n_points) : nothing
     faces = facetype[]
 
     # Read vertex data — parse all columns, extract by index
@@ -128,6 +160,10 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
         end
         if has_uv
             point_uvs[i] = Vec2f(numbers[prop_idx[uv_names[1]]], numbers[prop_idx[uv_names[2]]])
+        end
+        if has_rgb
+            rgb = (numbers[prop_idx[:red]], numbers[prop_idx[:green]], numbers[prop_idx[:blue]]) .* color_scale
+            point_colors[i] = has_alpha ? Vec4f(rgb..., numbers[prop_idx[:alpha]] * color_scale) : Vec3f(rgb...)
         end
     end
 
@@ -149,6 +185,7 @@ function load(fs::Stream{format"PLY_ASCII"}; facetype=GLTriangleFace, pointtype=
     kwargs = Pair{Symbol, Any}[]
     has_normals && push!(kwargs, :normal => point_normals)
     has_uv && push!(kwargs, :uv => point_uvs)
+    point_colors !== nothing && push!(kwargs, :color => point_colors)
 
     return Mesh(points, faces; kwargs...)
 end
