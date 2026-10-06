@@ -486,3 +486,13 @@ end
         end
     end
 end
+
+@testset "glTF skinning" begin
+    include("gltf_skin.jl")
+end
+
+@testset "glTF save" begin
+    include("gltf_save.jl")
+end
+
+include("khronos_conformance.jl")
