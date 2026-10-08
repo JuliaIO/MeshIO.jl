@@ -486,3 +486,7 @@ end
         end
     end
 end
+
+include("gltf_skin.jl")
+include("gltf_save.jl")
+include("khronos_conformance.jl")

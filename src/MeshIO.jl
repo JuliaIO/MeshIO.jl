@@ -2,6 +2,8 @@ module MeshIO
 
 using GeometryBasics
 using ColorTypes
+using LinearAlgebra: norm, dot, cross
+using Base64: base64decode
 using Printf
 using UUIDs: UUID
 
@@ -20,6 +22,7 @@ include("io/gts.jl")
 include("io/ifs.jl")
 include("io/inp.jl")
 include("io/gltf.jl")
+include("io/gltf_skin.jl")
 
 """
     load(fn::File{MeshFormat}; pointtype=Point3f, uvtype=Vec2f,

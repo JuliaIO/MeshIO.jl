@@ -140,6 +140,22 @@ function gltf_transform_normal(n, mat::Mat4f, ::Type{NT}) where NT
     return NT(result[1], result[2], result[3])
 end
 
+"`attribute` filled with `default` up to `n` vertices, for primitives that lack it."
+function pad!(attribute::Vector, n::Integer, default)
+    length(attribute) < n && append!(attribute, Iterators.repeated(default, n - length(attribute)))
+    return attribute
+end
+
+"A vertex colour as `COLOR_0`'s linear RGBA; RGB gets alpha 1."
+gltf_rgba(c::GeometryBasics.VecTypes{4}) = Vec4f(c)
+gltf_rgba(c::GeometryBasics.VecTypes{3}) = Vec4f(c..., 1)
+gltf_rgba(c::Union{AbstractRGB, TransparentRGB}) = Vec4f(red(c), green(c), blue(c), alpha(c))
+
+"The triangles of a primitive whose vertices start after `offset` others."
+gltf_triangles(::Type{F}, indices::AbstractVector{<:Integer}, offset::Int) where {F} =
+    F[F(indices[i] + offset + 1, indices[i + 1] + offset + 1, indices[i + 2] + offset + 1)
+      for i in 1:3:length(indices) - 2]
+
 """
     gltf_load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::Union{String,Nothing}, buffer_idx::Int) -> Vector{UInt8}
 
@@ -157,7 +173,7 @@ function gltf_load_buffer_data(gltf, embedded_binary::Vector{UInt8}, base_path::
             if comma_idx !== nothing
                 data_part = uri[comma_idx+1:end]
                 if occursin(";base64", uri[1:comma_idx])
-                    return Base64.base64decode(data_part)
+                    return base64decode(data_part)
                 else
                     return Vector{UInt8}(data_part)
                 end
@@ -203,14 +219,19 @@ function gltf_accessor_data(gltf, binary_data::Vector{UInt8}, base_path, accesso
     end
 
     ET = num_components == 1 ? type_info.type : NTuple{num_components, type_info.type}
-    data = Vector{ET}(undef, count)
-    for i in 0:(count-1)
-        element_offset = offset + i * stride + 1
-        data[i + 1] = gltf_read_typed_data(buffer_data, element_offset, type_info.type, num_components)
-    end
-
-    return data
+    data = gltf_read_elements(ET, buffer_data, offset, stride, count)
+    # `normalized` integers stand for reals on [0, 1] or [-1, 1] (quantized weights, colours).
+    return get(accessor, :normalized, false) ? map(gltf_denormalize, data) : data
 end
+
+"`count` elements of type `T`, `stride` bytes apart from `offset` (0-based)."
+gltf_read_elements(::Type{T}, bytes::Vector{UInt8}, offset::Int, stride::Int, count::Int) where {T} =
+    T[only(reinterpret(T, view(bytes, offset + i * stride .+ (1:sizeof(T))))) for i in 0:count-1]
+
+"A `normalized` component as glTF decodes it; -1 has two signed encodings, both kept at -1."
+gltf_denormalize(v::Tuple) = map(gltf_denormalize, v)
+gltf_denormalize(v::Unsigned) = Float32(v) / typemax(v)
+gltf_denormalize(v::Signed) = max(Float32(v) / typemax(v), -1f0)
 
 """
     gltf_component_type_info(component_type::Int)
@@ -247,19 +268,6 @@ function gltf_type_components(type_str::String)
     return components[type_str]
 end
 
-"""
-    gltf_read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
-
-Read typed data from byte array.
-"""
-function gltf_read_typed_data(data::Vector{UInt8}, offset::Int, T::Type, count::Int)
-    if count == 1
-        return reinterpret(T, data[offset:offset+sizeof(T)-1])[1]
-    else
-        values = [reinterpret(T, data[offset+(i-1)*sizeof(T):offset+i*sizeof(T)-1])[1] for i in 1:count]
-        return Tuple(values)
-    end
-end
 
 """
     extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path) -> Dict{String, Any}
@@ -319,7 +327,7 @@ function extract_gltf_textures(gltf, binary_data::Vector{UInt8}, base_path)
                 comma_idx = findfirst(',', uri)
                 if comma_idx !== nothing && occursin(";base64", uri[1:comma_idx])
                     data_part = uri[comma_idx+1:end]
-                    image_bytes = Base64.base64decode(data_part)
+                    image_bytes = base64decode(data_part)
                     try
                         io = IOBuffer(image_bytes)
                         img = FileIO.load(io)
@@ -604,22 +612,31 @@ function extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
         return MetaMesh(empty_mesh)
     end
 
+    # A primitive lacking an attribute that others have gets it `pad!`ded.
     all_positions = pointtype[]
     all_normals = normaltype[]
     all_uvs = uvtype[]
+    all_colors = Vec4f[]                # COLOR_0, linear RGBA
+    all_joints = Vec{4, Int32}[]        # 1-based bones of `skeleton`
+    all_weights = Vec4f[]
     all_faces = facetype[]
 
     views = UnitRange{Int}[]
     material_names = String[]
-
-    has_normals = false
-    has_uvs = false
 
     current_vertex_offset = Ref(0)
     current_face_offset = Ref(0)
 
     # Root transform to convert from glTF Y-up to target up axis
     up_matrix = gltf_up_rotation(up)
+
+    node_table = gltf_node_table(gltf)
+    node_clips = gltf_node_animations(gltf, binary_data, base_path)
+    # A second skin numbers its joints from zero again; merging would need a remap per primitive.
+    skins = get(gltf, :skins, ())
+    length(skins) > 1 && @warn "glTF file has $(length(skins)) skins; only the first is read."
+    skeleton, joint_remap, node_to_bone = isempty(skins) ? (nothing, Int32[], Dict{Int, Int}()) :
+        gltf_skeleton(gltf, binary_data, base_path, first(skins), node_table, up_matrix)
 
     function process_node(node_idx::Int, parent_transform::Mat4f)
         node = gltf.nodes[node_idx + 1]
@@ -641,35 +658,30 @@ function extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
                     continue
                 end
 
-                normals = nothing
-                if haskey(primitive.attributes, :NORMAL)
-                    normals = gltf_accessor_data(gltf, binary_data, base_path, primitive.attributes.NORMAL)
-                    has_normals = true
-                end
+                attribute(name) = haskey(primitive.attributes, name) ?
+                    gltf_accessor_data(gltf, binary_data, base_path, primitive.attributes[name]) : nothing
+                normals, uvs, colors = attribute(:NORMAL), attribute(:TEXCOORD_0), attribute(:COLOR_0)
+                indices = haskey(primitive, :indices) ?
+                    gltf_accessor_data(gltf, binary_data, base_path, primitive.indices) : 0:length(positions)-1
 
-                uvs = nothing
-                if haskey(primitive.attributes, :TEXCOORD_0)
-                    uvs = gltf_accessor_data(gltf, binary_data, base_path, primitive.attributes.TEXCOORD_0)
-                    has_uvs = true
-                end
+                # glTF ignores a skinned mesh's node transform: its joints carry it,
+                # and the up rotation rides on the skeleton's root.
+                skinned = !isnothing(skeleton) && haskey(node, :skin) && haskey(primitive.attributes, :JOINTS_0)
+                vertex_transform = skinned ? IDENTITY_MAT4F : world_transform
+                offset = current_vertex_offset[]
 
-                indices = nothing
-                if haskey(primitive, :indices)
-                    indices = gltf_accessor_data(gltf, binary_data, base_path, primitive.indices)
-                end
-
-                for p in positions
-                    push!(all_positions, gltf_transform_point(p, world_transform, pointtype))
-                end
-
-                if !isnothing(normals)
-                    for n in normals
-                        push!(all_normals, gltf_transform_normal(n, world_transform, normaltype))
-                    end
-                elseif has_normals
-                    for _ in 1:length(positions)
-                        push!(all_normals, normaltype(0, 0, 1))
-                    end
+                append!(all_positions, map(p -> gltf_transform_point(p, vertex_transform, pointtype), positions))
+                isnothing(normals) || append!(pad!(all_normals, offset, normaltype(0, 0, 1)),
+                    map(n -> gltf_transform_normal(n, vertex_transform, normaltype), normals))
+                isnothing(colors) || append!(pad!(all_colors, offset, Vec4f(1)), map(gltf_rgba, colors))
+                if skinned
+                    # JOINTS_0 indexes the skin's joint list; `joint_remap` makes that a bone.
+                    joints = attribute(:JOINTS_0)
+                    append!(pad!(all_joints, offset, Vec{4, Int32}(1)),
+                            map(j -> Vec{4, Int32}(map(k -> joint_remap[k + 1], j)), joints))
+                    weights = attribute(:WEIGHTS_0)
+                    append!(pad!(all_weights, offset, Vec4f(0)),
+                            isnothing(weights) ? fill(Vec4f(1, 0, 0, 0), length(joints)) : Vec4f.(weights))
                 end
 
                 # Get UV transform from material if KHR_texture_transform is used
@@ -686,43 +698,15 @@ function extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
                 # Apply UV coordinates
                 # - Without KHR_texture_transform: flip V only (u, 1-v)
                 # - With KHR_texture_transform: apply transform then swap+flip (1-v, 1-u)
-                if !isnothing(uvs)
-                    for uv in uvs
-                        if !isnothing(uv_transform)
-                            transformed_uv = apply_gltf_uv_transform(uv, uv_transform)
-                            push!(all_uvs, uvtype(1.0f0 - transformed_uv[2], 1.0f0 - transformed_uv[1]))
-                        else
-                            push!(all_uvs, uvtype(uv[1], 1.0f0 - uv[2]))
-                        end
-                    end
-                elseif has_uvs
-                    for _ in 1:length(positions)
-                        push!(all_uvs, uvtype(0, 0))
-                    end
-                end
+                isnothing(uvs) || append!(pad!(all_uvs, offset, uvtype(0, 0)), map(uvs) do uv
+                    isnothing(uv_transform) && return uvtype(uv[1], 1.0f0 - uv[2])
+                    transformed_uv = apply_gltf_uv_transform(uv, uv_transform)
+                    return uvtype(1.0f0 - transformed_uv[2], 1.0f0 - transformed_uv[1])
+                end)
 
-                num_faces = 0
-                if !isnothing(indices)
-                    for i in 0:(length(indices)÷3-1)
-                        face = facetype(
-                            indices[i*3+1] + current_vertex_offset[] + 1,
-                            indices[i*3+2] + current_vertex_offset[] + 1,
-                            indices[i*3+3] + current_vertex_offset[] + 1
-                        )
-                        push!(all_faces, face)
-                        num_faces += 1
-                    end
-                else
-                    for i in 1:3:length(positions)-2
-                        face = facetype(
-                            i + current_vertex_offset[],
-                            i + 1 + current_vertex_offset[],
-                            i + 2 + current_vertex_offset[]
-                        )
-                        push!(all_faces, face)
-                        num_faces += 1
-                    end
-                end
+                primitive_faces = gltf_triangles(facetype, indices, offset)
+                append!(all_faces, primitive_faces)
+                num_faces = length(primitive_faces)
 
                 if num_faces > 0
                     view_start = current_face_offset[] + 1
@@ -760,30 +744,20 @@ function extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
                 process_node(root_node_idx, up_matrix)
             end
         end
-    elseif haskey(gltf, :nodes)
+    else
         # Fallback: process all root-level nodes
-        all_children = Set{Int}()
-        for node in gltf.nodes
-            if haskey(node, :children)
-                for c in node.children
-                    push!(all_children, c)
-                end
-            end
-        end
-        for i in 0:(length(gltf.nodes)-1)
-            if !(i in all_children)
-                process_node(i, up_matrix)
-            end
-        end
+        foreach(i -> process_node(i - 1, up_matrix), findall(iszero, node_table.parents))
     end
 
     # Create mesh with appropriate attributes
+    n = length(all_positions)
     kwargs_mesh = Pair{Symbol, Any}[]
-    if has_normals && length(all_normals) == length(all_positions)
-        push!(kwargs_mesh, :normal => all_normals)
-    end
-    if has_uvs && length(all_uvs) == length(all_positions)
-        push!(kwargs_mesh, :uv => all_uvs)
+    isempty(all_normals) || push!(kwargs_mesh, :normal => pad!(all_normals, n, normaltype(0, 0, 1)))
+    isempty(all_uvs) || push!(kwargs_mesh, :uv => pad!(all_uvs, n, uvtype(0, 0)))
+    isempty(all_colors) || push!(kwargs_mesh, :color => pad!(all_colors, n, Vec4f(1)))
+    if !isempty(all_joints)
+        push!(kwargs_mesh, :skinjoints => pad!(all_joints, n, Vec{4, Int32}(1)),
+                           :skinweights => pad!(all_weights, n, Vec4f(0)))
     end
 
     mesh = GeometryBasics.Mesh(all_positions, all_faces; views=views, kwargs_mesh...)
@@ -799,6 +773,138 @@ function extract_gltf_mesh(gltf, binary_data::Vector{UInt8}, base_path;
     if !isempty(material_names)
         metadata[:material_names] = material_names
     end
+    isempty(all_joints) || (metadata[:skeleton] = skeleton)
+    animations = gltf_bone_animations(node_clips, node_to_bone)
+    isempty(animations) || (metadata[:animations] = animations)
+    isempty(node_table.parents) || (metadata[:nodes] = node_table)
+    isempty(node_clips) || (metadata[:node_animations] = node_clips)
 
     return MetaMesh(mesh, metadata)
+end
+
+##############################
+#
+# Saving GLB
+#
+##############################
+
+"""
+    save(fn::File{format"GLB"}, mesh; up = Vec3f(0, 0, 1))
+
+Write a mesh as binary glTF, the inverse of `load`: views become primitives,
+`meta[:materials]` and `meta[:material_names]` materials with PNG-embedded
+textures. Positions, `:normal`, `:uv` and `:color` (linear, as `COLOR_0`) are
+written, rotated from `up` to glTF's Y-up with UVs flipped back to `(u, 1 - v)`.
+"""
+function save(f::Stream{format"GLB"}, mesh; up = Vec3f(0, 0, 1))
+    m = GeometryBasics.expand_faceviews(GeometryBasics.Mesh(mesh))
+    meta = mesh isa MetaMesh ? mesh.meta : Dict{Symbol, Any}()
+    toglb = Mat3f(transpose(gltf_up_rotation(Vec3f(up))[Vec(1, 2, 3), Vec(1, 2, 3)]))
+
+    bin = UInt8[]
+    views = Dict{String, Any}[]
+    accessors = Dict{String, Any}[]
+    function blob!(bytes::AbstractVector{UInt8}; target = nothing)
+        align!(bin)
+        v = Dict{String, Any}("buffer" => 0, "byteOffset" => length(bin), "byteLength" => length(bytes))
+        target === nothing || (v["target"] = target)
+        append!(bin, bytes)
+        push!(views, v)
+        return length(views) - 1
+    end
+    function accessor!(data::AbstractVector, ctype, type; target = 34962, fields...)
+        push!(accessors, Dict{String, Any}("bufferView" => blob!(reinterpret(UInt8, data); target),
+              "componentType" => ctype, "count" => length(data), "type" => type,
+              (string(k) => v for (k, v) in fields)...))
+        return length(accessors) - 1
+    end
+
+    points = coordinates(m)
+    va = GeometryBasics.vertex_attributes(m)
+    normals, uvs, colors = get(va, :normal, nothing), get(va, :uv, nothing), get(va, :color, nothing)
+    # `load` reads each primitive's vertices as its own, so a primitive carries
+    # exactly the vertices its faces use.
+    function attributes!(vids)
+        position = [Point3f(toglb * Vec3f(points[v])) for v in vids]
+        bounds = Rect3f(position)
+        a = Dict("POSITION" => accessor!(position, 5126, "VEC3"; min = minimum(bounds), max = maximum(bounds)))
+        isnothing(normals) || (a["NORMAL"] = accessor!([Vec3f(toglb * Vec3f(normals[v])) for v in vids], 5126, "VEC3"))
+        isnothing(uvs) || (a["TEXCOORD_0"] = accessor!([Vec2f(uvs[v][1], 1f0 - uvs[v][2]) for v in vids], 5126, "VEC2"))
+        isnothing(colors) || (a["COLOR_0"] = accessor!([gltf_rgba(colors[v]) for v in vids], 5126, "VEC4"))
+        return a
+    end
+
+    materials = get(meta, :materials, Dict{String, Any}())
+    names = get(meta, :material_names, String[])
+    images = Dict{String, Any}[]
+    textures = Dict{String, Any}[]
+    function texture!(img)
+        buf = IOBuffer()
+        FileIO.save(FileIO.Stream{FileIO.format"PNG"}(buf), img)
+        push!(images, Dict{String, Any}("bufferView" => blob!(take!(buf)), "mimeType" => "image/png"))
+        push!(textures, Dict{String, Any}("source" => length(images) - 1))
+        return Dict{String, Any}("index" => length(textures) - 1)
+    end
+    order = unique(filter(n -> haskey(materials, n), names))
+    gltfmaterials = [gltfmaterial(n, materials[n], texture!) for n in order]
+
+    fs = faces(m)
+    local_index = zeros(UInt32, length(points))
+    primitives = Dict{String, Any}[]
+    for (i, r) in enumerate(isempty(m.views) ? [1:length(fs)] : m.views)
+        vids = sort!(unique!([Int(value(v)) for f in view(fs, r) for v in f]))
+        local_index[vids] .= 0:length(vids)-1
+        indices = UInt32[local_index[value(v)] for f in view(fs, r) for v in f]
+        p = Dict{String, Any}("attributes" => attributes!(vids), "mode" => 4,
+                              "indices" => accessor!(indices, 5125, "SCALAR"; target = 34963))
+        mat = i <= length(names) ? findfirst(==(names[i]), order) : nothing
+        mat === nothing || (p["material"] = mat - 1)
+        push!(primitives, p)
+    end
+
+    gltf = Dict{String, Any}(
+        "asset" => Dict("version" => "2.0", "generator" => "MeshIO.jl"),
+        "scene" => 0,
+        "scenes" => [Dict("nodes" => [0])],
+        "nodes" => [Dict("mesh" => 0)],
+        "meshes" => [Dict("primitives" => primitives)],
+        "buffers" => [Dict("byteLength" => length(align!(bin)))],
+        "bufferViews" => views,
+        "accessors" => accessors)
+    isempty(gltfmaterials) || (gltf["materials"] = gltfmaterials)
+    isempty(images) || (gltf["images"] = images; gltf["textures"] = textures)
+
+    json = align!(Vector{UInt8}(JSON3.write(gltf)), UInt8(' '))
+    io = stream(f)
+    write(io, UInt32(GLB_MAGIC), UInt32(2), UInt32(12 + 8 + length(json) + 8 + length(bin)))
+    write(io, UInt32(length(json)), UInt32(GLB_JSON_CHUNK), json)
+    write(io, UInt32(length(bin)), UInt32(GLB_BIN_CHUNK), bin)
+    return nothing
+end
+
+"`bytes` padded with `byte` to glTF's 4-byte alignment."
+align!(bytes::Vector{UInt8}, byte::UInt8 = 0x00) = append!(bytes, fill(byte, mod(-length(bytes), 4)))
+
+"""
+One material as `extract_gltf_materials` reads it back: the same keys, turned
+into glTF's `pbrMetallicRoughness` and the textures `texture!` embeds.
+"""
+function gltfmaterial(name, mat::AbstractDict, texture!)
+    pbr = Dict{String, Any}()
+    diffuse = get(mat, "diffuse", Vec3f(1, 1, 1))
+    pbr["baseColorFactor"] = [diffuse[1], diffuse[2], diffuse[3], get(mat, "alpha", 1f0)]
+    haskey(mat, "metallic") && (pbr["metallicFactor"] = mat["metallic"])
+    haskey(mat, "roughness") && (pbr["roughnessFactor"] = mat["roughness"])
+    haskey(mat, "diffuse map") && (pbr["baseColorTexture"] = texture!(mat["diffuse map"]["image"]))
+    haskey(mat, "metallic roughness map") &&
+        (pbr["metallicRoughnessTexture"] = texture!(mat["metallic roughness map"]["image"]))
+    out = Dict{String, Any}("name" => name, "pbrMetallicRoughness" => pbr)
+    haskey(mat, "normal map") && (out["normalTexture"] = texture!(mat["normal map"]["image"]))
+    haskey(mat, "occlusion map") && (out["occlusionTexture"] = texture!(mat["occlusion map"]["image"]))
+    haskey(mat, "emissive") && (out["emissiveFactor"] = collect(mat["emissive"]))
+    haskey(mat, "emissive map") && (out["emissiveTexture"] = texture!(mat["emissive map"]["image"]))
+    haskey(mat, "alpha mode") && (out["alphaMode"] = mat["alpha mode"])
+    haskey(mat, "alpha cutoff") && (out["alphaCutoff"] = mat["alpha cutoff"])
+    haskey(mat, "double sided") && (out["doubleSided"] = mat["double sided"])
+    return out
 end
