@@ -21,7 +21,7 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
     f_uv_n_faces = (faces, facetype[], facetype[])
 
     # name => (first_face, value)
-    group_meta = Dict{Symbol, Dict{Int, T} where T}()
+    group_meta = Dict{Symbol, Vector{Tuple{Int, T}} where T}()
     mtllibs = String[]
 
     open(fn) do io
@@ -75,23 +75,23 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
                     end
 
                 elseif "s" == command  # Blender sets this just before faces
-                    shadings = get!(() -> Dict{Int, Bool}(), group_meta, :shading)
-                    shadings[length(faces)+1] = parse_bool(lines[1])
+                    shadings = get!(() -> Tuple{Int, Bool}[], group_meta, :shading)
+                    push!(shadings, (length(faces)+1, parse_bool(lines[1])))
 
                 elseif "o" == command  # Blender sets this before vertices
-                    objects = get!(() -> Dict{Int, String}(), group_meta, :object)
-                    objects[length(faces)+1] = join(lines, ' ')
+                    objects = get!(() -> Tuple{Int, String}[], group_meta, :object)
+                    push!(objects, (length(faces)+1, join(lines, ' ')))
 
                 elseif "g" == command
-                    groups = get!(() -> Dict{Int, String}(), group_meta, :groups)
-                    groups[length(faces)+1] = join(lines, ' ')
+                    groups = get!(() -> Tuple{Int, String}[], group_meta, :groups)
+                    push!(groups, (length(faces)+1, join(lines, ' ')))
 
                 elseif "mtllib" == command
                     push!(mtllibs, join(lines, ' '))
 
                 elseif "usemtl" == command # Blender sets this just before faces
-                    materials = get!(() -> Dict{Int, String}(), group_meta, :material_names)
-                    materials[length(faces)+1] = join(lines, ' ')
+                    materials = get!(() -> Tuple{Int, String}[], group_meta, :material_names)
+                    push!(materials, (length(faces)+1, join(lines, ' ')))
                 else
                     # TODO:
                     # parameter space vertices
@@ -122,7 +122,7 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
         # Find all the starting indices used across objects, groups, shadings, materials
         starts_set = Set{Int}()
         for meta in values(group_meta)
-            union!(starts_set, keys(meta))
+            union!(starts_set, Iterators.map(first, meta))
         end
         starts_vec = sort!(collect(starts_set))
 
@@ -133,14 +133,23 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
         end
         mesh.views[end] = starts_vec[end] : length(faces)
 
-        # generate metadata dict matching the views with nothing as the gap filler
-        N = length(starts_vec)
+        # generate metadata dict matching the views with nothing as the default
         metadata = Dict{Symbol, Any}()
-        for (name, dict) in group_meta
-            if length(dict) == N
-                metadata[name] = getindex.(Ref(dict), starts_vec)
-            else
-                metadata[name] = get.(Ref(dict), starts_vec, nothing)
+        for (name, meta) in group_meta
+            @assert issorted(meta, by=first)
+            metadata[name] = map(starts_vec) do face_idx
+                meta_idx = searchsortedlast(meta, face_idx, by=first)
+                if meta_idx == 0
+                    return nothing
+                else
+                    return last(meta[meta_idx])
+                end
+            end
+            if any(isnothing, metadata[name])
+                # some attributes have a default value to use if specified for some faces but not all
+                # assume that most exporters set attributes for all faces if attributes are used
+                # trigger a warning rather than using hardcoded defaults based on attribute
+                @warn "obj file sets $name for some faces, but not all."
             end
         end
 
@@ -154,7 +163,7 @@ function load(fn::File{format"OBJ"}; facetype=GLTriangleFace,
 
         # Fallback - if no mtl file exists abort and return just the mesh
         if !any(filename -> isfile(joinpath(path, filename)), mtllibs)
-            @error "obj file contains references to .mtl files, but none could be found. Expected: $mtllibs in $path."
+            @warn "obj file contains references to .mtl files, but none could be found. Expected: $mtllibs in $path."
             return mesh
         end
 
@@ -209,7 +218,9 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
 
     if hasproperty(mesh, :uv)
         for uv in mesh.uv
-            println(io, "vt ", uv[1], " ", uv[2])
+            # vt *u* v w
+            # Only *u* is required in vt
+            println(io, "vt ", join(uv[begin:min(length(uv), 3)], " "))
         end
     end
 
@@ -221,7 +232,22 @@ function save(f::Stream{format"OBJ"}, mesh::AbstractMesh)
 
     F = eltype(faces(mesh))
     for f in decompose(F, mesh)
-        println(io, "f ", join(convert.(Int, f), " "))
+        print(io, "f", )
+        for p in convert.(Int, f)
+            print(io, " ", p)
+            if hasproperty(mesh, :uv)
+                # f v/vt
+                print(io, "/", p)
+            elseif hasproperty(mesh, :normal)
+                # f v/
+                print(io, "/")
+            end
+            if hasproperty(mesh, :normal)
+                # f v/vt/vn OR f v//vn
+                print(io, "/", p)
+            end
+        end
+        println(io)
     end
 end
 

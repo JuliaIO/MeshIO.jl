@@ -55,6 +55,21 @@ end
             mesh_loaded = load(joinpath(tmpdir, "test.obj"))
             @test mesh_loaded == uvn_mesh
         end
+        for (info, file) in [("vertex only", "cube"), ("vertex uv", "cube_uv"), ("vertex uvv", "cube_uvw"), ("vertex normal", "test_face_normal")]
+            @testset "load save OBJ - $info" begin
+                initial_mesh = load(joinpath(tf, "$file.obj"))
+                save(joinpath(tmpdir, "temp.obj"), initial_mesh)
+                mesh_loaded = load(joinpath(tmpdir, "temp.obj"))
+                # TODO:
+                # We do not yet safe mtl related information, shading, object/group
+                # names and the associated mesh.views, and we handle `FaceViews`
+                # by flattening them instead of working them into face indices
+                @test_broken mesh_loaded == initial_mesh
+                expanded = GeometryBasics.expand_faceviews(initial_mesh)
+                @test mesh_loaded.faces == expanded.faces
+                @test mesh_loaded.vertex_attributes == expanded.vertex_attributes
+            end
+        end
     end
 
 
@@ -333,6 +348,18 @@ end
                     @test coordinates(msh2)[f1] == coordinates(msh3)[f2]
                     @test normals(msh2)[f1] == normals(msh3)[f2]
                 end
+
+                valid_msh = load(joinpath(tf, "cube_uv.obj"))
+                save(joinpath(tmpdir, "cube_uv.obj"), valid_msh)
+                saved_msh = load(joinpath(tmpdir, "cube_uv.obj"))
+                @test typeof(saved_msh.uv) == typeof(valid_msh.uv)
+                @test length(saved_msh.uv) == length(valid_msh.uv)
+
+                valid_msh = load(joinpath(tf, "cube_uvw.obj"))
+                save(joinpath(tmpdir, "cube_uvw.obj"), valid_msh)
+                saved_msh = load(joinpath(tmpdir, "cube_uvw.obj"))
+                @test typeof(saved_msh.uv) == typeof(valid_msh.uv)
+                @test length(saved_msh.uv) == length(valid_msh.uv)
             end
         end
         @testset "2DM" begin
@@ -475,6 +502,38 @@ end
             @test material["ambient map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
             @test material["diffuse map"] isa Dict{String, Any}
             @test material["diffuse map"]["filename"] == replace(joinpath(tf, "mini sponza/SP_LUK.JPG"), '\\' => '/')
+        end
+
+        @testset "Six-Sided Die (OBJ)" begin
+            # tests state-setting behvaior
+            # one usemtl statement, which must persist across multiple f statements
+            msh = load(joinpath(tf, "D6/D6.obj")) # quads
+
+            @test msh isa MetaMesh
+            @test length(faces(msh)) == 12
+            @test length(coordinates(msh)) == 8
+            @test test_face_indices(msh)
+
+            @test length(msh[:material_names]) == 6
+            @test all(msh[:material_names] .== ["Material"])
+            @test msh[:shading] == BitVector(zeros(6))
+            @test length(msh[:object]) == 6
+            @test all(msh[:object] .== ["Cube"])
+            @test length(msh[:groups]) == 6
+            for i in 1:6
+                @test "Face$i" in msh[:groups]
+            end
+            @test length(msh[:materials]) == 1
+            @test length(msh[:materials]["Material"]) == 8
+            @test msh[:materials]["Material"]["refractive index"]           === 1.45f0
+            @test msh[:materials]["Material"]["diffuse map"]                isa Dict{String, Any}
+            @test msh[:materials]["Material"]["diffuse map"]["filename"]    == replace(joinpath(tf, "D6/dice_unwrap.png"), '\\' => '/')
+            @test msh[:materials]["Material"]["illumination model"]         === 2
+            @test msh[:materials]["Material"]["alpha"]                      === 1f0
+            @test msh[:materials]["Material"]["specular"]                   === Vec3f(0.5, 0.5, 0.5)
+            @test msh[:materials]["Material"]["shininess"]                  === 0f0
+            @test msh[:materials]["Material"]["ambient"]                    === Vec3f(1.0, 1.0, 1.0)
+            @test msh[:materials]["Material"]["emissive"]                   === 0f0
         end
 
         @testset "INP" begin

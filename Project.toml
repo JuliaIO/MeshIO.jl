@@ -1,7 +1,7 @@
 name = "MeshIO"
 uuid = "7269a6da-0436-5bbc-96c2-40638cbb6118"
-version = "0.5.3"
 author = "Simon Danisch"
+version = "0.5.5"
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
